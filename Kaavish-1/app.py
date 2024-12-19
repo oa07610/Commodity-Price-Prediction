@@ -432,6 +432,35 @@ def login():
     return render_template('index.html')
 
 
+# Feedback model
+class Feedback(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    feedback_text = db.Column(db.Text, nullable=False)
+    date_submitted = db.Column(db.DateTime, default=datetime.utcnow)
+
+with app.app_context():
+    db.create_all()
+
+# Route to render the feedback form
+@app.route('/feedback', methods=['GET', 'POST'])
+def feedback():
+    if request.method == 'POST':
+        feedback_text = request.form['feedback']
+        user_id = session.get('user_id')  # Get the logged-in user's ID
+
+        if not feedback_text.strip():
+            flash('Feedback cannot be empty!', 'danger')
+            return redirect(url_for('feedback'))
+
+        feedback_entry = Feedback(user_id=user_id, feedback_text=feedback_text)
+        db.session.add(feedback_entry)
+        db.session.commit()
+        flash('Thank you for your feedback!', 'success')
+        return redirect(url_for('home'))
+
+    return render_template('feedback.html')
+
 @app.route('/ur')
 def ur_index():
     return redirect('/ur/home')  # Redirect to the Urdu home page
