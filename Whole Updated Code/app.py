@@ -210,8 +210,6 @@ def en_home():
     return render_template('home.html')  # English home page
 
 
-
-
 @app.route('/home')
 def home():
     return render_template('home.html')
@@ -225,10 +223,10 @@ def dashboard():
 def help_centre():
     return render_template('help_centre.html')
 
-
-
-
-
+# Add FAQs route
+@app.route('/faqs')
+def faqs():
+    return render_template('faqs.html')
 
 @app.route('/ur/verify')
 def ur_verify():
@@ -242,7 +240,9 @@ def ur_dashboard():
 def ur_help_center():
     return render_template('ur_help_centre.html')  # Urdu Help Centre template
 
-
+@app.route('/ur/faqs')
+def ur_faqs():
+    return render_template('ur_faqs.html')  # Urdu FAQs page
 
 
 @app.route('/get_sugar_data', methods=['GET'])
@@ -305,11 +305,6 @@ def get_sugar_data():
         })
 
     return jsonify(result)
-
-
-
-
-
 
 if __name__ == '__main__':
     app.run(debug=True)
