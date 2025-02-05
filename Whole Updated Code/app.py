@@ -184,7 +184,7 @@ def login():
                 session['user_id'] = user.id
                 session['username'] = user.username
                 flash('Logged in successfully!', 'success')
-                return redirect(url_for('home'))
+                return redirect(url_for('dashboard'))
             else:
                 flash('Invalid username or password!', 'danger')
                 return redirect(url_for('index'))
@@ -192,57 +192,63 @@ def login():
     return render_template('index.html')
 
 
-@app.route('/ur')
-def ur_index():
-    return redirect('/ur/home')  # Redirect to the Urdu home page
+# @app.route('/ur')
+# def ur_index():
+#     return redirect('/ur/home')  # Redirect to the Urdu home page
 
-@app.route('/ur/home')
-def ur_home():
-    return render_template('ur_home.html')  # Urdu home page
+# @app.route('/ur/home')
+# def ur_home():
+#     return render_template('ur_home.html')  # Urdu home page
+
+@app.route('/newsletter')
+def newsletter():
+    return render_template('newsletter.html')  # newsletter page
 
 
 @app.route('/')
 def index():
     return render_template('index.html')  # Redirect to the English home page
 
-@app.route('/en/home')
-def en_home():
-    return render_template('home.html')  # English home page
+@app.route('/logout')
+def logout():
+    session.clear()  # Clear the session data
+    flash('You have been logged out.', 'info')
+    return redirect(url_for('index'))  # Redirect to the index page
+
+# @app.route('/en/home')
+# def en_home():
+#     return render_template('home.html')  # English home page
 
 
-@app.route('/home')
-def home():
-    return render_template('home.html')
+# @app.route('/dashboard')
+# def home():
+#     return render_template('dashboard.html')
 
 # Add dashboard route
 @app.route('/dashboard')
 def dashboard():
     return render_template('dashboard.html')
 
-@app.route('/help-centre')
-def help_centre():
-    return render_template('help_centre.html')
-
 # Add FAQs route
 @app.route('/faqs')
 def faqs():
     return render_template('faqs.html')
 
-@app.route('/ur/verify')
-def ur_verify():
-    return render_template('ur_verify.html')  # Urdu verification page
+# @app.route('/ur/verify')
+# def ur_verify():
+#     return render_template('ur_verify.html')  # Urdu verification page
 
-@app.route('/ur/dashboard')
-def ur_dashboard():
-    return render_template('ur_dashboard.html')  # Urdu dashboard
+# @app.route('/ur/dashboard')
+# def ur_dashboard():
+#     return render_template('ur_dashboard.html')  # Urdu dashboard
 
-@app.route('/ur/help-centre')
-def ur_help_center():
-    return render_template('ur_help_centre.html')  # Urdu Help Centre template
+# @app.route('/ur/help-centre')
+# def ur_help_center():
+#     return render_template('ur_help_centre.html')  # Urdu Help Centre template
 
-@app.route('/ur/faqs')
-def ur_faqs():
-    return render_template('ur_faqs.html')  # Urdu FAQs page
+# @app.route('/ur/faqs')
+# def ur_faqs():
+#     return render_template('ur_faqs.html')  # Urdu FAQs page
 
 
 @app.route('/get_sugar_data', methods=['GET'])
@@ -296,6 +302,58 @@ def get_sugar_data():
 
         result.append({
             'region': region,
+            'dates_actual': dates_actual,
+            'actual_prices': actual_prices,
+            'dates_predicted': dates_predicted,
+            'predicted_prices': predicted_prices,
+            'color_actual': colors_actual[i % len(colors_actual)],
+            'color_predicted': colors_predicted[i % len(colors_predicted)],
+        })
+
+    return jsonify(result)
+def get_crop_data():
+    province = request.args.get('province')
+    crops = request.args.get('crops').split(',')
+
+    if not province or not crops:
+        return jsonify({'error': 'Invalid input. Please select a province and at least one crop.'}), 400
+
+    crop_files = {
+        'Sugar': (SUGAR_ACTUAL_FILE, SUGAR_PRED_FILE),
+        'Maize': (MAIZE_ACTUAL_FILE, MAIZE_PRED_FILE),
+        'Cotton': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE)
+    }
+
+    result = []
+    colors_actual = ['rgba(76, 175, 80, 1)', 'rgba(255, 87, 34, 1)', 'rgba(33, 150, 243, 1)']
+    colors_predicted = ['rgba(76, 175, 80, 0.5)', 'rgba(255, 87, 34, 0.5)', 'rgba(33, 150, 243, 0.5)']
+
+    for i, crop in enumerate(crops):
+        if crop not in crop_files:
+            continue
+
+        actual_file, pred_file = crop_files[crop]
+        actual_data = pd.read_csv(actual_file)
+        pred_data = pd.read_csv(pred_file)
+
+        region_actual = actual_data[actual_data['province'] == province].copy()
+        region_pred = pred_data[pred_data['province'] == province].copy()
+
+        if region_actual.empty or region_pred.empty:
+            continue
+
+        # Standardize dates
+        region_actual['date'] = pd.to_datetime(region_actual['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        region_pred['date'] = pd.to_datetime(region_pred['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+
+        dates_actual = region_actual['date'].tolist()
+        dates_predicted = region_pred['date'].tolist()
+
+        actual_prices = region_actual['price'].tolist()
+        predicted_prices = region_pred['price'].tolist()
+
+        result.append({
+            'crop': crop,
             'dates_actual': dates_actual,
             'actual_prices': actual_prices,
             'dates_predicted': dates_predicted,
