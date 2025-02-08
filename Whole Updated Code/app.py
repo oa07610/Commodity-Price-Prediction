@@ -4,12 +4,18 @@ import pandas as pd
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
 from models import db, User
 from werkzeug.security import generate_password_hash, check_password_hash
-import requests
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
+from flask_cors import CORS
+import google.generativeai as genai
+from googletrans import Translator
+from deep_translator import GoogleTranslator
+import requests
 import random
+import base64
 
 app = Flask(__name__)
+CORS(app)
 app.config['SECRET_KEY'] = '55fc588fcd7ef7e247fa6db7953d398f16520b1aeacabd74'  # Replace with a strong secret key
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///users.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -17,6 +23,19 @@ db.init_app(app)
 app.secret_key = 'your_secret_key'
 with app.app_context():
     db.create_all()
+# Configure the Gemini API key
+genai.configure(api_key="AIzaSyATFqI_3BL0y78m9R3XTwKcHLMiCURbMcI")
+
+# Whisper API configuration
+WHISPER_API_URL = "https://api-inference.huggingface.co/models/openai/whisper-large-v3-turbo"
+WHISPER_HEADERS = {"Authorization": "Bearer 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"}
+
+# WeatherAPI configuration
+WEATHER_API_KEY = "c0363e5d2fde46e098f134021252001"
+WEATHER_BASE_URL = "http://api.weatherapi.com/v1/forecast.json"
+
+# Initialize the translator
+translator = Translator()
 
 # File to store user data
 USER_DATA_FILE = 'user_data.json'
@@ -233,6 +252,10 @@ def dashboard():
 @app.route('/faqs')
 def faqs():
     return render_template('faqs.html')
+# Add CHATBOT route
+@app.route('/chatbot')
+def chatbot():
+    return render_template('chatbot.html')
 
 # @app.route('/ur/verify')
 # def ur_verify():
@@ -250,6 +273,110 @@ def faqs():
 # def ur_faqs():
 #     return render_template('ur_faqs.html')  # Urdu FAQs page
 
+#chatbot code#
+
+def transcribe_audio(audio_data):
+    try:
+        response = requests.post(WHISPER_API_URL, headers=WHISPER_HEADERS, data=audio_data)
+        output = response.json()
+        return output.get("text", "Error in transcription")
+    except Exception as e:
+        return f"Error in transcription: {str(e)}"
+
+def translate_roman_urdu(text):
+    translated = translator.translate(text, src='auto', dest='en')
+    return translated.text
+
+def get_weather_data(location):
+    try:
+        params = {"key": WEATHER_API_KEY, "q": location, "days": 1}
+        response = requests.get(WEATHER_BASE_URL, params=params)
+        data = response.json()
+
+        if "error" in data:
+            return f"Could not fetch weather data for '{location}'. Please try again."
+
+        location_name = data["location"]["name"]
+        region = data["location"]["region"]
+        country = data["location"]["country"]
+        current = data["current"]
+        condition = current["condition"]["text"]
+        temp_c = current["temp_c"]
+        chance_of_rain = data["forecast"]["forecastday"][0]["day"]["daily_chance_of_rain"]
+
+        return (f"Weather in {location_name}, {region}, {country}:\n"
+                f"- Condition: {condition}\n"
+                f"- Temperature: {temp_c}°C\n"
+                f"- Chance of Rain: {chance_of_rain}%")
+    except Exception as e:
+        return f"Error fetching weather data: {e}"
+
+def extract_location_with_gemini(query):
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash-002')
+    prompt = f"""
+    Extract the location from the following user query. If no location is mentioned, return 'None'.
+    Query: {query}
+    Location:
+    """
+    response = gemini_model.generate_content(prompt)
+    location = response.text.strip()
+    return location if location.lower() != "none" else None
+
+def generate_gemini_answer(conversation_history):
+    gemini_model = genai.GenerativeModel('gemini-1.5-flash-002')
+    response = gemini_model.generate_content([f"""
+    You are a helpful and knowledgeable agricultural chatbot. Assist with crop-related and weather-related queries.
+    Use the provided weather information if applicable. If not, reply based on your general knowledge.
+
+    ## Conversation History:
+    {conversation_history}
+
+    ## Current User Query:
+    {conversation_history.splitlines()[-1]}
+
+    ## Answer:
+    """])
+    return response.text
+
+@app.route('/api/chat', methods=['POST'])
+def chat():
+    try:
+        data = request.json
+        input_type = data.get('type', 'text')
+        
+        if input_type == 'audio':
+            # Handle audio input
+            audio_data = base64.b64decode(data['audio'].split(',')[1])
+            user_message = transcribe_audio(audio_data)
+            # Translate transcribed text to Urdu for display
+            translated_output = GoogleTranslator(source="auto", target="ur").translate(user_message)
+        else:
+            # Handle text input
+            user_message = data.get('message', '')
+            
+        # Translate to English for processing
+        translated_question = translate_roman_urdu(user_message)
+        conversation_history = f"User: {translated_question}\n"
+        
+        # Check for weather-related queries
+        if "weather" in translated_question.lower() or "rain" in translated_question.lower():
+            location = extract_location_with_gemini(translated_question)
+            if not location:
+                location = "Pakistan"
+            weather_response = get_weather_data(location)
+            conversation_history += f"Weather Info: {weather_response}\n"
+        
+        # Generate Gemini AI response
+        response = generate_gemini_answer(conversation_history)
+        
+        return jsonify({
+            'response': response,
+            'translated_question': translated_question,
+            'urdu_translation': translated_output if input_type == 'audio' else None
+        })
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/get_sugar_data', methods=['GET'])
 def get_sugar_data():
