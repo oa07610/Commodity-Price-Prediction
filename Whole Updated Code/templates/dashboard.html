@@ -591,7 +591,8 @@
       </div>
     </div>
 
-    <!-- New Commodity Comparison Section -->
+    <!-- Update the commodity checkboxes section -->
+<!-- Update the commodity checkboxes section -->
     <div class="commodity-comparison">
       <h2 class="section-title">Commodity Price Comparison</h2>
       <div class="control-grid">
@@ -610,12 +611,16 @@
           <label>Select Commodities</label>
           <div class="commodity-checkboxes">
             <div class="commodity-checkbox">
-              <input type="checkbox" id="compareCotton" value="Cotton">
-              <label for="compareCotton">Cotton</label>
-            </div>
-            <div class="commodity-checkbox">
               <input type="checkbox" id="compareMaize" value="Maize">
               <label for="compareMaize">Maize</label>
+            </div>
+            <div class="commodity-checkbox">
+              <input type="checkbox" id="compareCottonByProduct1" value="Cotton-1">
+              <label for="compareCottonByProduct1">Cotton By-product 1</label>
+            </div>
+            <div class="commodity-checkbox">
+              <input type="checkbox" id="compareCottonByProduct2" value="Cotton-2">
+              <label for="compareCottonByProduct2">Cotton By-product 2</label>
             </div>
             <div class="commodity-checkbox">
               <input type="checkbox" id="compareSugar" value="Sugar">
@@ -629,8 +634,8 @@
         </div>
       </div>
 
-      <div class="chart-container">
-        <canvas id="comparisonChart"></canvas>
+      <div id="comparisonChartsContainer" style="display: flex; flex-direction: column; gap: 20px;">
+        <!-- Charts will be dynamically added here -->
       </div>
     </div>
 
@@ -966,5 +971,131 @@
       });
       
       </script>
+      <script>
+        document.getElementById('showComparisonGraph').addEventListener('click', function() {
+            const province = document.getElementById('compareRegion').value;
+            const crops = [];
+            
+            if (document.getElementById('compareMaize').checked) crops.push('Maize');
+            if (document.getElementById('compareCottonByProduct1').checked) crops.push('Cotton-1');
+            if (document.getElementById('compareCottonByProduct2').checked) crops.push('Cotton-2');
+            if (document.getElementById('compareSugar').checked) crops.push('Sugar');
+        
+            if (!province || crops.length === 0) {
+                alert('Please select a province and at least one crop.');
+                return;
+            }
+        
+            // Clear existing charts
+            const container = document.getElementById('comparisonChartsContainer');
+            container.innerHTML = '';
+        
+            // Create a canvas for each selected crop
+            crops.forEach((crop, index) => {
+                const chartDiv = document.createElement('div');
+                chartDiv.className = 'chart-container';
+                chartDiv.style.marginBottom = '20px';
+                
+                const canvas = document.createElement('canvas');
+                canvas.id = `comparisonChart_${index}`;
+                chartDiv.appendChild(canvas);
+                container.appendChild(chartDiv);
+            });
+        
+            fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach((cropData, index) => {
+                        const ctx = document.getElementById(`comparisonChart_${index}`).getContext('2d');
+        
+                        const allDates = [
+                            ...cropData.dates_actual,
+                            ...cropData.dates_predicted
+                        ].sort();
+        
+                        const actualPricesMapped = allDates.map(date =>
+                            cropData.dates_actual.includes(date)
+                                ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
+                                : null
+                        );
+        
+                        const predictedPricesMapped = allDates.map(date =>
+                            cropData.dates_predicted.includes(date)
+                                ? cropData.predicted_prices[cropData.dates_predicted.indexOf(date)]
+                                : null
+                        );
+        
+                        new Chart(ctx, {
+                            type: 'line',
+                            data: {
+                                labels: allDates,
+                                datasets: [
+                                    {
+                                        label: `${cropData.crop} Actual Prices`,
+                                        data: actualPricesMapped,
+                                        borderColor: cropData.color_actual,
+                                        fill: false,
+                                        tension: 0.1,
+                                        pointRadius: 0,
+                                        pointHoverRadius: 0,
+                                        borderWidth: 3
+                                    },
+                                    {
+                                        label: `${cropData.crop} Predicted Prices`,
+                                        data: predictedPricesMapped,
+                                        borderColor: cropData.color_predicted,
+                                        fill: false,
+                                        tension: 0.1,
+                                        pointRadius: 0,
+                                        pointHoverRadius: 0,
+                                        borderWidth: 1.5
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                scales: {
+                                    x: {
+                                        type: 'time',
+                                        time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
+                                        title: { display: true, text: 'Date' },
+                                        grid: {
+                                            color: 'rgba(0,0,0,0.05)'
+                                        }
+                                    },
+                                    y: {
+                                        title: { display: true, text: 'Price' },
+                                        grid: {
+                                            color: 'rgba(0,0,0,0.05)'
+                                        }
+                                    }
+                                },
+                                plugins: {
+                                    title: { 
+                                        display: true, 
+                                        text: `${cropData.crop} Price Trends in ${province}`,
+                                        font: {
+                                            size: 16,
+                                            weight: 'bold'
+                                        }
+                                    },
+                                    legend: {
+                                        labels: {
+                                            usePointStyle: true,
+                                            padding: 20
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                    });
+                })
+                .catch(error => {
+                    console.error('Error fetching data:', error);
+                    alert('Error fetching data. Please ensure data is available for the selected province and crops.');
+                });
+        });
+    </script>
 </body>
 </html>

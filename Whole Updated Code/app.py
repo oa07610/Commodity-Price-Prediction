@@ -2,7 +2,7 @@
 import json
 import pandas as pd
 from flask import Flask, render_template, redirect, url_for, request, flash, session, jsonify
-from models import db, User
+from models import db, User, NewsletterPost
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_mail import Mail, Message
 from datetime import datetime, timedelta
@@ -13,6 +13,10 @@ from deep_translator import GoogleTranslator
 import requests
 import random
 import base64
+import os
+from flask import send_from_directory
+from werkzeug.utils import secure_filename
+from functools import wraps
 
 app = Flask(__name__)
 CORS(app)
@@ -23,6 +27,10 @@ db.init_app(app)
 app.secret_key = 'your_secret_key'
 with app.app_context():
     db.create_all()
+
+
+
+
 # Configure the Gemini API key
 genai.configure(api_key="AIzaSyATFqI_3BL0y78m9R3XTwKcHLMiCURbMcI")
 
@@ -68,6 +76,147 @@ app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'sidraaamir122019@gmail.com'  # Replace with your email
 app.config['MAIL_PASSWORD'] = 'azma juwr nkof ejtw'  # Replace with your email password
 mail = Mail(app)
+
+# Update the UPLOAD_FOLDER to be an absolute path
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
+# Create uploads folder if it doesn't exist
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'user_id' not in session:
+            flash('Please log in first.', 'danger')
+            return redirect(url_for('login'))
+        
+        user = User.query.get(session['user_id'])
+        if not user or not user.is_admin:
+            flash('Access denied. Admin privileges required.', 'danger')
+            return redirect(url_for('index'))
+        
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route('/admin')
+@admin_required
+def admin_dashboard():
+    # Get the logged-in user information from your session or database
+    #user = User.query.get(session['username'])
+    posts = NewsletterPost.query.order_by(NewsletterPost.created_at.desc()).all()
+    return render_template('admin/admin_dashboard.html', posts=posts)
+
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+print(f"Upload folder path: {UPLOAD_FOLDER}")  # Debug print
+@app.route('/admin/create_post', methods=['GET', 'POST'])
+@admin_required
+def create_post():
+    if request.method == 'POST':
+        title = request.form.get('title')
+        content = request.form.get('content')
+        
+        print("Form data received:")  # Debug print
+        print(f"Title: {title}")
+        print(f"Content: {content}")
+        print(f"Files in request: {request.files}")  # Debug print
+        
+        if not title or not content:
+            flash('Title and content are required.', 'danger')
+            return redirect(url_for('create_post'))
+        
+        image_url = None
+        video_url = None
+        
+        # Handle image upload
+        if 'image' in request.files:
+            file = request.files['image']
+            print(f"Image file received: {file.filename}")  # Debug print
+            
+            if file and file.filename and allowed_file(file.filename):
+                try:
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    print(f"Saving image to: {file_path}")  # Debug print
+                    
+                    # Ensure the directory exists
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    
+                    file.save(file_path)
+                    image_url = f'/static/uploads/{filename}'
+                    print(f"Image URL set to: {image_url}")  # Debug print
+                except Exception as e:
+                    print(f"Error saving image: {str(e)}")  # Debug print
+                    flash(f'Error uploading image: {str(e)}', 'danger')
+                    return redirect(url_for('create_post'))
+            else:
+                print("File not allowed or no filename")  # Debug print
+        
+        # Handle video upload
+        if 'video' in request.files:
+            file = request.files['video']
+            print(f"Video file received: {file.filename}")  # Debug print
+            
+            if file and file.filename and allowed_file(file.filename):
+                try:
+                    filename = secure_filename(file.filename)
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                    print(f"Saving video to: {file_path}")  # Debug print
+                    
+                    # Ensure the directory exists
+                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    
+                    file.save(file_path)
+                    video_url = f'/static/uploads/{filename}'
+                    print(f"Video URL set to: {video_url}")  # Debug print
+                except Exception as e:
+                    print(f"Error saving video: {str(e)}")  # Debug print
+                    flash(f'Error uploading video: {str(e)}', 'danger')
+                    return redirect(url_for('create_post'))
+            else:
+                print("File not allowed or no filename")  # Debug print
+        
+        try:
+            post = NewsletterPost(
+                title=title,
+                content=content,
+                image_url=image_url,
+                video_url=video_url,
+                author_id=session['user_id']
+            )
+            
+            print(f"Creating post with image_url: {image_url}")  # Debug print
+            
+            db.session.add(post)
+            db.session.commit()
+            
+            print("Post created successfully")  # Debug print
+            flash('Post created successfully!', 'success')
+            return redirect(url_for('admin_dashboard'))
+        except Exception as e:
+            print(f"Error creating post: {str(e)}")  # Debug print
+            db.session.rollback()
+            flash(f'Error creating post: {str(e)}', 'danger')
+            return redirect(url_for('create_post'))
+    
+    return render_template('admin/create_post.html')
+
+# Add a route to serve static files during development
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    return send_from_directory('static', filename)
+@app.route('/newsletter')
+def newsletter():
+    posts = NewsletterPost.query.order_by(NewsletterPost.created_at.desc()).all()
+    return render_template('newsletter.html', posts=posts)
+
+
 
 # Temporary storage for verification codes
 verification_data = {}
@@ -203,11 +352,15 @@ def login():
                 session['user_id'] = user.id
                 session['username'] = user.username
                 flash('Logged in successfully!', 'success')
-                return redirect(url_for('dashboard'))
-            else:
-                flash('Invalid username or password!', 'danger')
-                return redirect(url_for('index'))
-        
+                session['username'] = username  # Store username in session
+                if user.is_admin:
+                    return redirect(url_for('admin_dashboard'))
+                else:
+                    return redirect(url_for('dashboard'))
+           
+            flash('Invalid username or password!', 'danger')
+            return redirect(url_for('index'))
+    
     return render_template('index.html')
 
 
@@ -219,9 +372,9 @@ def login():
 # def ur_home():
 #     return render_template('ur_home.html')  # Urdu home page
 
-@app.route('/newsletter')
-def newsletter():
-    return render_template('newsletter.html')  # newsletter page
+# @app.route('/newsletter')
+# def newsletter():
+#     return render_template('newsletter.html')  # newsletter page
 
 
 @app.route('/')
@@ -438,6 +591,7 @@ def get_sugar_data():
         })
 
     return jsonify(result)
+@app.route('/get_crop_data', methods=['GET'])
 def get_crop_data():
     province = request.args.get('province')
     crops = request.args.get('crops').split(',')
@@ -448,12 +602,13 @@ def get_crop_data():
     crop_files = {
         'Sugar': (SUGAR_ACTUAL_FILE, SUGAR_PRED_FILE),
         'Maize': (MAIZE_ACTUAL_FILE, MAIZE_PRED_FILE),
-        'Cotton': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE)
+        'Cotton-1': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE),
+        'Cotton-2': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE)
     }
 
     result = []
-    colors_actual = ['rgba(76, 175, 80, 1)', 'rgba(255, 87, 34, 1)', 'rgba(33, 150, 243, 1)']
-    colors_predicted = ['rgba(76, 175, 80, 0.5)', 'rgba(255, 87, 34, 0.5)', 'rgba(33, 150, 243, 0.5)']
+    colors_actual = ['rgba(76, 175, 80, 1)', 'rgba(255, 87, 34, 1)', 'rgba(33, 150, 243, 1)', 'rgba(156, 39, 176, 1)']
+    colors_predicted = ['rgba(76, 175, 80, 0.5)', 'rgba(255, 87, 34, 0.5)', 'rgba(33, 150, 243, 0.5)', 'rgba(156, 39, 176, 0.5)']
 
     for i, crop in enumerate(crops):
         if crop not in crop_files:
@@ -462,6 +617,12 @@ def get_crop_data():
         actual_file, pred_file = crop_files[crop]
         actual_data = pd.read_csv(actual_file)
         pred_data = pd.read_csv(pred_file)
+
+        # Handle Cotton by-products
+        if crop.startswith('Cotton-'):
+            by_product = int(crop.split('-')[1])
+            actual_data = actual_data[actual_data['by_product'] == by_product]
+            pred_data = pred_data[pred_data['by_product'] == by_product]
 
         region_actual = actual_data[actual_data['province'] == province].copy()
         region_pred = pred_data[pred_data['province'] == province].copy()
@@ -490,6 +651,5 @@ def get_crop_data():
         })
 
     return jsonify(result)
-
 if __name__ == '__main__':
     app.run(debug=True)
