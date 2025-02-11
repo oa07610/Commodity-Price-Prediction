@@ -78,9 +78,11 @@ app.config['MAIL_PASSWORD'] = 'azma juwr nkof ejtw'  # Replace with your email p
 mail = Mail(app)
 
 # Update the UPLOAD_FOLDER to be an absolute path
+
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'}
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'mp4', 'mov'}
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 # Create uploads folder if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -122,11 +124,6 @@ def create_post():
         title = request.form.get('title')
         content = request.form.get('content')
         
-        print("Form data received:")  # Debug print
-        print(f"Title: {title}")
-        print(f"Content: {content}")
-        print(f"Files in request: {request.files}")  # Debug print
-        
         if not title or not content:
             flash('Title and content are required.', 'danger')
             return redirect(url_for('create_post'))
@@ -137,50 +134,39 @@ def create_post():
         # Handle image upload
         if 'image' in request.files:
             file = request.files['image']
-            print(f"Image file received: {file.filename}")  # Debug print
-            
             if file and file.filename and allowed_file(file.filename):
                 try:
                     filename = secure_filename(file.filename)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    print(f"Saving image to: {file_path}")  # Debug print
+                    # Create a unique filename to avoid conflicts
+                    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                     
-                    # Ensure the directory exists
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
-                    
+                    # Save the file
                     file.save(file_path)
-                    image_url = f'/static/uploads/{filename}'
-                    print(f"Image URL set to: {image_url}")  # Debug print
+                    # Set the URL to be relative to the static folder
+                    image_url = f'/static/uploads/{unique_filename}'
+                    
                 except Exception as e:
-                    print(f"Error saving image: {str(e)}")  # Debug print
+                    print(f"Error saving image: {str(e)}")
                     flash(f'Error uploading image: {str(e)}', 'danger')
                     return redirect(url_for('create_post'))
-            else:
-                print("File not allowed or no filename")  # Debug print
         
-        # Handle video upload
+        # Handle video upload (similar changes)
         if 'video' in request.files:
             file = request.files['video']
-            print(f"Video file received: {file.filename}")  # Debug print
-            
             if file and file.filename and allowed_file(file.filename):
                 try:
                     filename = secure_filename(file.filename)
-                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                    print(f"Saving video to: {file_path}")  # Debug print
-                    
-                    # Ensure the directory exists
-                    os.makedirs(os.path.dirname(file_path), exist_ok=True)
+                    unique_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+                    file_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
                     
                     file.save(file_path)
-                    video_url = f'/static/uploads/{filename}'
-                    print(f"Video URL set to: {video_url}")  # Debug print
+                    video_url = f'/static/uploads/{unique_filename}'
+                    
                 except Exception as e:
-                    print(f"Error saving video: {str(e)}")  # Debug print
+                    print(f"Error saving video: {str(e)}")
                     flash(f'Error uploading video: {str(e)}', 'danger')
                     return redirect(url_for('create_post'))
-            else:
-                print("File not allowed or no filename")  # Debug print
         
         try:
             post = NewsletterPost(
@@ -191,16 +177,12 @@ def create_post():
                 author_id=session['user_id']
             )
             
-            print(f"Creating post with image_url: {image_url}")  # Debug print
-            
             db.session.add(post)
             db.session.commit()
             
-            print("Post created successfully")  # Debug print
             flash('Post created successfully!', 'success')
             return redirect(url_for('admin_dashboard'))
         except Exception as e:
-            print(f"Error creating post: {str(e)}")  # Debug print
             db.session.rollback()
             flash(f'Error creating post: {str(e)}', 'danger')
             return redirect(url_for('create_post'))
@@ -210,7 +192,12 @@ def create_post():
 # Add a route to serve static files during development
 @app.route('/static/<path:filename>')
 def serve_static(filename):
-    return send_from_directory('static', filename)
+    try:
+        return send_from_directory('static', filename)
+    except Exception as e:
+        print(f"Error serving static file: {str(e)}")
+        return "File not found", 404
+
 @app.route('/newsletter')
 def newsletter():
     posts = NewsletterPost.query.order_by(NewsletterPost.created_at.desc()).all()

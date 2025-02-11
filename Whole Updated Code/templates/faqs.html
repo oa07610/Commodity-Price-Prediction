@@ -154,7 +154,12 @@
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      object-fit: cover;
+      background: var(--primary-color);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
     }
 
     .user-info {
@@ -355,21 +360,15 @@
       <i class="ri-search-line"></i>
       <input type="text" placeholder="Search...">
     </div>
-    <div class="user-section">
-      <div class="notifications">
-        <i class="ri-notification-3-line"></i>
+    <div class="d-flex align-items-center gap-3">
+      <span class="welcome-message">Welcome, {{ session['username'] }}!</span>
+      <div class="user-avatar">
+          {{ session['username'][0].upper() }}
       </div>
-      <div class="user-profile">
-        <img src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?ixlib=rb-1.2.1&auto=format&fit=facearea&facepad=2&w=256&h=256&q=80" alt="User Avatar" class="user-avatar">
-        <div class="user-info">
-          <span class="user-name">John Doe</span>
-          <span class="user-role">Administrator</span>
-        </div>
-        <button class="logout-btn">
+      <button class="logout-btn">
           <i class="ri-logout-box-r-line"></i>
-        </button>
-      </div>
-    </div>
+      </button>
+  </div>
   </div>
 
   <div class="sidebar">
