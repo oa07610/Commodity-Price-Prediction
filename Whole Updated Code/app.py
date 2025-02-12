@@ -638,5 +638,42 @@ def get_crop_data():
         })
 
     return jsonify(result)
+@app.route('/api/heatmap-data/<crop>')
+def get_heatmap_data(crop):
+    try:
+        # Use forward slashes for file paths
+        file_map = {
+            'Cotton': 'new_data/CottonMaster.csv',
+            'Maize': 'new_data/MaizeMaster.csv',
+            'Sugar': 'new_data/SugarMaster.csv',
+            'Wheat': 'new_data/WheatMaster.csv'
+        }
+        
+        if crop not in file_map:
+            return jsonify({'error': 'Invalid crop'}), 400
+            
+        df = pd.read_csv(file_map[crop])
+        df['date'] = pd.to_datetime(df['date'])
+        
+        # Handle potential NaN values
+        df = df.dropna(subset=['Lat', 'Long', 'maximum'])
+        
+        latest_date = df['date'].max()
+        filtered_df = df[(df['product'] == crop) & (df['date'] == latest_date)]
+        
+        # Convert to proper numeric types
+        heatmap_data = [{
+            'lat': float(row['Lat']),
+            'lng': float(row['Long']),
+            'value': float(row['maximum']),
+            'station': row['station'],
+            'date': latest_date.strftime('%Y-%m-%d')
+        } for _, row in filtered_df.iterrows()]
+        
+        return jsonify({'data': heatmap_data, 'date': latest_date.strftime('%Y-%m-%d')})
+    
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+    
 if __name__ == '__main__':
     app.run(debug=True)
