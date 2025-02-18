@@ -344,7 +344,7 @@
       box-shadow: var(--box-shadow);
       margin-bottom: 2rem;
       transition: var(--transition);
-      height: 750px;
+      height: 500px;
     }
 
     .chart-container:hover {
@@ -591,7 +591,32 @@
         <canvas id="commodityChart"></canvas>
       </div>
     </div>
-
+    <div class="chart-container">
+      <h2 class="section-title">Price Distribution Heatmap</h2>
+      <div class="control-grid mb-4">
+        <div class="control-item">
+          <label for="heatmapCrop">Select Crop</label>
+          <select id="heatmapCrop" class="w-full">
+            <option value="">Choose a crop</option>
+            <option value="Sugar">Sugar</option>
+            <option value="Maize">Maize</option>
+            <option value="Cotton">Cotton</option>
+            <option value="Wheat">Wheat</option>
+          </select>
+        </div>
+      </div>
+      <p id="heatmapDate" class="text-sm text-gray-600 mb-2"></p>
+      <div id="heatmap" style="height: 500px;"></div>
+      <div class="mt-4 flex justify-between items-center">
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-gray-600">Lower Price</span>
+          <div class="w-48 h-4 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded"></div>
+          <span class="text-sm text-gray-600">Higher Price</span>
+        </div>
+        <div id="heatmapLegend" class="text-sm text-gray-600"></div>
+      </div>
+    </div>
+    
     <!-- Update the commodity checkboxes section -->
 <!-- Update the commodity checkboxes section -->
     <div class="commodity-comparison">
@@ -640,32 +665,6 @@
       </div>
     </div>
 
-  <!-- Replace the existing heatmap container with this updated version -->
-  <div class="chart-container">
-    <h2 class="section-title">Price Distribution Heatmap</h2>
-    <div class="control-grid mb-4">
-      <div class="control-item">
-        <label for="heatmapCrop">Select Crop</label>
-        <select id="heatmapCrop" class="w-full">
-          <option value="">Choose a crop</option>
-          <option value="Sugar">Sugar</option>
-          <option value="Maize">Maize</option>
-          <option value="Cotton">Cotton</option>
-          <option value="Wheat">Wheat</option>
-        </select>
-      </div>
-    </div>
-    <p id="heatmapDate" class="text-sm text-gray-600 mb-2"></p>
-    <div id="heatmap" style="height: 350px;"></div>
-    <div class="mt-4 flex justify-between items-center">
-      <div class="flex items-center gap-2">
-        <span class="text-sm text-gray-600">Lower Price</span>
-        <div class="w-48 h-4 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded"></div>
-        <span class="text-sm text-gray-600">Higher Price</span>
-      </div>
-      <div id="heatmapLegend" class="text-sm text-gray-600"></div>
-    </div>
-  </div>
 
 
   </div>
@@ -820,130 +819,203 @@
         });
     });
   </script>
+  <!-- Update the heatmap JavaScript code -->
   <script>
-    // Initialize the map
-    const map = L.map('heatmap').setView([30.3753, 69.3451], 6);
-
-    // Add the OpenStreetMap tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(map);
-
-    // Update the heatmap initialization with proper parameters
-    let heatmapLayer = L.heatLayer([], {
-        radius: 25,
-        maxOpacity: 0.6,
-        blur: 15,
-        gradient: {
-            0.4: '#2ecc71',
-            0.6: '#f1c40f',
-            0.8: '#e74c3c'
-        }
-    }).addTo(map);
-
-    // Store markers in a layer group for easy removal
-    let markersLayer = L.layerGroup().addTo(map);
-
-    // Function to format price
-    function formatPrice(price) {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'PKR'
-        }).format(price);
+    document.getElementById('heatmapCrop').addEventListener('change', function() {
+      const crop = this.value;
+      if (crop) {
+        fetchHeatmapData(crop);
+      }
+    });
+  
+    function fetchHeatmapData(crop) {
+      fetch(`/api/heatmap-data/${crop}`)
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+          updateHeatmapVisualization(data);
+        })
+        .catch(error => console.error("Error fetching heatmap data:", error));
     }
-
-    // Function to update heatmap data
-    function updateHeatmap(crop) {
-        if (!crop) return;
+  
+    function updateHeatmapVisualization(data) {
+      // Assuming you're using Leaflet.js or any mapping library to visualize the heatmap
+      const heatmapLayer = L.heatLayer(
+        data.map(item => [item.lat, item.long, item.price]), 
+        { radius: 25 }
+      );
+      heatmapLayer.addTo(map);
+    }
+  </script>
+  
+  <script>
+      document.getElementById('province').addEventListener('change', function() {
+        const province = this.value;
+        const cropContainer = document.getElementById('cropContainer');
         
-        // Clear existing markers
-        markersLayer.clearLayers();
-        
-        fetch(`/api/heatmap-data/${crop}`)
+        if (province) {
+            cropContainer.style.display = 'block';
+        } else {
+            cropContainer.style.display = 'none';
+        }
+    });
+    
+    document.getElementById('showGraphProvince').addEventListener('click', function() {
+        const province = document.getElementById('province').value;
+        const crops = Array.from(document.querySelectorAll('input[name="crop"]:checked')).map(el => el.value);
+    
+        if (!province || crops.length === 0) {
+            alert('Please select at least one province and one crop.');
+            return;
+        }
+    
+        fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
             .then(response => response.json())
-            .then(response => {
-                const { data, date } = response;
-                
-                // Update date display
-                document.getElementById('heatmapDate').textContent = `Showing prices for: ${date}`;
-                
-                // Calculate min and max prices for legend
-                const prices = data.map(item => item.value);
-                const minPrice = Math.min(...prices);
-                const maxPrice = Math.max(...prices);
-                document.getElementById('heatmapLegend').textContent = 
-                    `Price Range: ${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-                
-                // Format data for heatmap
-                const heatmapData = data.map(point => [point.lat, point.lng, point.value]);
-                
-                // Update heatmap layer
-                heatmapLayer.setLatLngs(heatmapData);
-
-                // Add markers for stations
-                data.forEach(point => {
-                    const marker = L.marker([point.lat, point.lng])
-                        .bindPopup(`
-                            <div class="text-center">
-                                <strong class="text-lg">${point.station}</strong><br>
-                                <span class="text-sm">Price: ${formatPrice(point.value)}</span>
-                            </div>
-                        `);
-                    markersLayer.addLayer(marker);
+            .then(data => {
+                const ctx = document.getElementById('cropChart').getContext('2d');
+    
+                if (window.cropChart instanceof Chart) {
+                    window.cropChart.destroy();
+                }
+    
+                const allDates = Array.from(new Set(data.flatMap(cropData => [
+                    ...cropData.dates_actual,
+                    ...cropData.dates_predicted
+                ]))).sort();
+    
+                const datasets = [];
+                data.forEach(cropData => {
+                    const actualPricesMapped = allDates.map(date =>
+                        cropData.dates_actual.includes(date)
+                            ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
+                            : null
+                    );
+    
+                    const predictedPricesMapped = allDates.map(date =>
+                        cropData.dates_predicted.includes(date)
+                            ? cropData.predicted_prices[cropData.dates_predicted.indexOf(date)]
+                            : null
+                    );
+    
+                    datasets.push({
+                        label: `${cropData.crop} Actual Prices`,
+                        data: actualPricesMapped,
+                        borderColor: cropData.color_actual,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        borderWidth: 3
+                    });
+    
+                    datasets.push({
+                        label: `${cropData.crop} Predicted Prices`,
+                        data: predictedPricesMapped,
+                        borderColor: cropData.color_predicted,
+                        fill: false,
+                        tension: 0.1,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        borderWidth: 1.5
+                    });
+                });
+    
+                window.cropChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: allDates,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
+                                title: { display: true, text: 'Date' },
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                }
+                            },
+                            y: {
+                                title: { display: true, text: 'Price' },
+                                grid: {
+                                    color: 'rgba(0,0,0,0.05)'
+                                }
+                            }
+                        },
+                        plugins: {
+                            title: { 
+                                display: true, 
+                                text: `Crop Price Trends in ${province}`,
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                labels: {
+                                    usePointStyle: true,
+                                    padding: 20
+                                }
+                            }
+                        }
+                    }
                 });
             })
             .catch(error => {
-                console.error('Error loading heatmap data:', error);
-                alert('Error loading price data. Please try again.');
+                console.error('Error fetching data:', error);
+                alert('Error fetching data. Please ensure data is available for the selected province and crops.');
             });
-    }
-
-    // Add event listener for the heatmap crop dropdown
-    document.getElementById('heatmapCrop').addEventListener('change', function() {
-        const crop = this.value;
-        if (crop) {
-            updateHeatmap(crop);
-        }
     });
+    
     </script>
-
     <script>
-        document.getElementById('province').addEventListener('change', function() {
-          const province = this.value;
-          const cropContainer = document.getElementById('cropContainer');
+      document.getElementById('showComparisonGraph').addEventListener('click', function() {
+          const province = document.getElementById('compareRegion').value;
+          const crops = [];
           
-          if (province) {
-              cropContainer.style.display = 'block';
-          } else {
-              cropContainer.style.display = 'none';
-          }
-      });
-      
-      document.getElementById('showGraphProvince').addEventListener('click', function() {
-          const province = document.getElementById('province').value;
-          const crops = Array.from(document.querySelectorAll('input[name="crop"]:checked')).map(el => el.value);
+          if (document.getElementById('compareMaize').checked) crops.push('Maize');
+          if (document.getElementById('compareCottonByProduct1').checked) crops.push('Cotton-1');
+          if (document.getElementById('compareCottonByProduct2').checked) crops.push('Cotton-2');
+          if (document.getElementById('compareSugar').checked) crops.push('Sugar');
       
           if (!province || crops.length === 0) {
-              alert('Please select at least one province and one crop.');
+              alert('Please select a province and at least one crop.');
               return;
           }
+      
+          // Clear existing charts
+          const container = document.getElementById('comparisonChartsContainer');
+          container.innerHTML = '';
+      
+          // Create a canvas for each selected crop
+          crops.forEach((crop, index) => {
+              const chartDiv = document.createElement('div');
+              chartDiv.className = 'chart-container';
+              chartDiv.style.marginBottom = '20px';
+              
+              const canvas = document.createElement('canvas');
+              canvas.id = `comparisonChart_${index}`;
+              chartDiv.appendChild(canvas);
+              container.appendChild(chartDiv);
+          });
       
           fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
               .then(response => response.json())
               .then(data => {
-                  const ctx = document.getElementById('cropChart').getContext('2d');
+                  data.forEach((cropData, index) => {
+                      const ctx = document.getElementById(`comparisonChart_${index}`).getContext('2d');
       
-                  if (window.cropChart instanceof Chart) {
-                      window.cropChart.destroy();
-                  }
+                      const allDates = [
+                          ...cropData.dates_actual,
+                          ...cropData.dates_predicted
+                      ].sort();
       
-                  const allDates = Array.from(new Set(data.flatMap(cropData => [
-                      ...cropData.dates_actual,
-                      ...cropData.dates_predicted
-                  ]))).sort();
-      
-                  const datasets = [];
-                  data.forEach(cropData => {
                       const actualPricesMapped = allDates.map(date =>
                           cropData.dates_actual.includes(date)
                               ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
@@ -956,71 +1028,70 @@
                               : null
                       );
       
-                      datasets.push({
-                          label: `${cropData.crop} Actual Prices`,
-                          data: actualPricesMapped,
-                          borderColor: cropData.color_actual,
-                          fill: false,
-                          tension: 0.1,
-                          pointRadius: 0,
-                          pointHoverRadius: 0,
-                          borderWidth: 3
-                      });
-      
-                      datasets.push({
-                          label: `${cropData.crop} Predicted Prices`,
-                          data: predictedPricesMapped,
-                          borderColor: cropData.color_predicted,
-                          fill: false,
-                          tension: 0.1,
-                          pointRadius: 0,
-                          pointHoverRadius: 0,
-                          borderWidth: 1.5
-                      });
-                  });
-      
-                  window.cropChart = new Chart(ctx, {
-                      type: 'line',
-                      data: {
-                          labels: allDates,
-                          datasets: datasets
-                      },
-                      options: {
-                          responsive: true,
-                          maintainAspectRatio: false,
-                          scales: {
-                              x: {
-                                  type: 'time',
-                                  time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
-                                  title: { display: true, text: 'Date' },
-                                  grid: {
-                                      color: 'rgba(0,0,0,0.05)'
+                      new Chart(ctx, {
+                          type: 'line',
+                          data: {
+                              labels: allDates,
+                              datasets: [
+                                  {
+                                      label: `${cropData.crop} Actual Prices`,
+                                      data: actualPricesMapped,
+                                      borderColor: cropData.color_actual,
+                                      fill: false,
+                                      tension: 0.1,
+                                      pointRadius: 0,
+                                      pointHoverRadius: 0,
+                                      borderWidth: 3
+                                  },
+                                  {
+                                      label: `${cropData.crop} Predicted Prices`,
+                                      data: predictedPricesMapped,
+                                      borderColor: cropData.color_predicted,
+                                      fill: false,
+                                      tension: 0.1,
+                                      pointRadius: 0,
+                                      pointHoverRadius: 0,
+                                      borderWidth: 1.5
                                   }
-                              },
-                              y: {
-                                  title: { display: true, text: 'Price' },
-                                  grid: {
-                                      color: 'rgba(0,0,0,0.05)'
-                                  }
-                              }
+                              ]
                           },
-                          plugins: {
-                              title: { 
-                                  display: true, 
-                                  text: `Crop Price Trends in ${province}`,
-                                  font: {
-                                      size: 16,
-                                      weight: 'bold'
+                          options: {
+                              responsive: true,
+                              maintainAspectRatio: false,
+                              scales: {
+                                  x: {
+                                      type: 'time',
+                                      time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
+                                      title: { display: true, text: 'Date' },
+                                      grid: {
+                                          color: 'rgba(0,0,0,0.05)'
+                                      }
+                                  },
+                                  y: {
+                                      title: { display: true, text: 'Price' },
+                                      grid: {
+                                          color: 'rgba(0,0,0,0.05)'
+                                      }
                                   }
                               },
-                              legend: {
-                                  labels: {
-                                      usePointStyle: true,
-                                      padding: 20
+                              plugins: {
+                                  title: { 
+                                      display: true, 
+                                      text: `${cropData.crop} Price Trends in ${province}`,
+                                      font: {
+                                          size: 16,
+                                          weight: 'bold'
+                                      }
+                                  },
+                                  legend: {
+                                      labels: {
+                                          usePointStyle: true,
+                                          padding: 20
+                                      }
                                   }
                               }
                           }
-                      }
+                      });
                   });
               })
               .catch(error => {
@@ -1028,133 +1099,6 @@
                   alert('Error fetching data. Please ensure data is available for the selected province and crops.');
               });
       });
-      
-      </script>
-      <script>
-        document.getElementById('showComparisonGraph').addEventListener('click', function() {
-            const province = document.getElementById('compareRegion').value;
-            const crops = [];
-            
-            if (document.getElementById('compareMaize').checked) crops.push('Maize');
-            if (document.getElementById('compareCottonByProduct1').checked) crops.push('Cotton-1');
-            if (document.getElementById('compareCottonByProduct2').checked) crops.push('Cotton-2');
-            if (document.getElementById('compareSugar').checked) crops.push('Sugar');
-        
-            if (!province || crops.length === 0) {
-                alert('Please select a province and at least one crop.');
-                return;
-            }
-        
-            // Clear existing charts
-            const container = document.getElementById('comparisonChartsContainer');
-            container.innerHTML = '';
-        
-            // Create a canvas for each selected crop
-            crops.forEach((crop, index) => {
-                const chartDiv = document.createElement('div');
-                chartDiv.className = 'chart-container';
-                chartDiv.style.marginBottom = '20px';
-                
-                const canvas = document.createElement('canvas');
-                canvas.id = `comparisonChart_${index}`;
-                chartDiv.appendChild(canvas);
-                container.appendChild(chartDiv);
-            });
-        
-            fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
-                .then(response => response.json())
-                .then(data => {
-                    data.forEach((cropData, index) => {
-                        const ctx = document.getElementById(`comparisonChart_${index}`).getContext('2d');
-        
-                        const allDates = [
-                            ...cropData.dates_actual,
-                            ...cropData.dates_predicted
-                        ].sort();
-        
-                        const actualPricesMapped = allDates.map(date =>
-                            cropData.dates_actual.includes(date)
-                                ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
-                                : null
-                        );
-        
-                        const predictedPricesMapped = allDates.map(date =>
-                            cropData.dates_predicted.includes(date)
-                                ? cropData.predicted_prices[cropData.dates_predicted.indexOf(date)]
-                                : null
-                        );
-        
-                        new Chart(ctx, {
-                            type: 'line',
-                            data: {
-                                labels: allDates,
-                                datasets: [
-                                    {
-                                        label: `${cropData.crop} Actual Prices`,
-                                        data: actualPricesMapped,
-                                        borderColor: cropData.color_actual,
-                                        fill: false,
-                                        tension: 0.1,
-                                        pointRadius: 0,
-                                        pointHoverRadius: 0,
-                                        borderWidth: 3
-                                    },
-                                    {
-                                        label: `${cropData.crop} Predicted Prices`,
-                                        data: predictedPricesMapped,
-                                        borderColor: cropData.color_predicted,
-                                        fill: false,
-                                        tension: 0.1,
-                                        pointRadius: 0,
-                                        pointHoverRadius: 0,
-                                        borderWidth: 1.5
-                                    }
-                                ]
-                            },
-                            options: {
-                                responsive: true,
-                                maintainAspectRatio: false,
-                                scales: {
-                                    x: {
-                                        type: 'time',
-                                        time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
-                                        title: { display: true, text: 'Date' },
-                                        grid: {
-                                            color: 'rgba(0,0,0,0.05)'
-                                        }
-                                    },
-                                    y: {
-                                        title: { display: true, text: 'Price' },
-                                        grid: {
-                                            color: 'rgba(0,0,0,0.05)'
-                                        }
-                                    }
-                                },
-                                plugins: {
-                                    title: { 
-                                        display: true, 
-                                        text: `${cropData.crop} Price Trends in ${province}`,
-                                        font: {
-                                            size: 16,
-                                            weight: 'bold'
-                                        }
-                                    },
-                                    legend: {
-                                        labels: {
-                                            usePointStyle: true,
-                                            padding: 20
-                                        }
-                                    }
-                                }
-                            }
-                        });
-                    });
-                })
-                .catch(error => {
-                    console.error('Error fetching data:', error);
-                    alert('Error fetching data. Please ensure data is available for the selected province and crops.');
-                });
-        });
-    </script>
+  </script>
 </body>
 </html>
