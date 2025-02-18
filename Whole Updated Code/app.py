@@ -17,10 +17,12 @@ import os
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from functools import wraps
-import folium
+from folium import Map
 from folium.plugins import HeatMap
+import pandas as pd
 import branca
-import numpy as np
+import json
+from flask import jsonify
     
 
 app = Flask(__name__)
@@ -643,121 +645,111 @@ def get_crop_data():
         })
 
     return jsonify(result)
-@app.route('/api/heatmap-data/<crop>')
-def get_heatmap_data(crop):
-    crop = crop.lower()  # Convert crop name to lowercase to make it consistent
 
-    # Define the base filename
-    #base_filename = f"{crop}.html"
-    #filename = base_filename
+# @app.route('/get_heatmap_data')
+# def get_heatmap_data():
+#     try:
+#         # Read and process the data
+#         df = pd.read_csv("new_data/CottonMaster.csv")
+#         df['province'] = df['province'].str.strip()
+#         df['price'] = (df['minimum'] + df['maximum']) / 2
+        
+#         df = df[['date', 'station_id', 'by_product_id', 'province', 'Lat', 'Long', 'price']]
+#         df['date'] = pd.to_datetime(df['date'])
+#         df = df.drop_duplicates()
+#         df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
+#         df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
+        
+#         # Filter DataFrame
+#         df = df[(df['date'] == '2020-12-31') & (df['by_product_id'] == 7)]
+        
+#         # Prepare heatmap data
+#         heat_data = df[['Lat', 'Long', 'price']].values.tolist()
+        
+#         # Return data needed for rendering
+#         return jsonify({
+#             'heat_data': heat_data,
+#             'min_price': float(df['price'].min()),
+#             'max_price': float(df['price'].max())
+#         })
+        
+#     except Exception as e:
+#         return jsonify({'error': str(e)}), 500
 
-    # Check if the file already exists and append a number if it does
-    #counter = 1
-    # while os.path.exists(filename):
-    #     filename = f"{crop}{counter}.html"
-    #     counter += 1
 
-    if crop == "cotton":
-        df = pd.read_csv("new_data\CottonMaster.csv")
-    elif crop == "wheat":
-        df = pd.read_csv("new_data\WheatMaster.csv")
-    elif crop == "sugar":
-        df = pd.read_csv("new_data\SugarMaster.csv")
-    elif crop == "maize":
-        df = pd.read_csv("new_data\MaizeMaster.csv")
-    else:
-        print("Invalid crop name")
-        exit()
+from folium import Map
+from folium.plugins import HeatMap
+import pandas as pd
+import branca
+import json
+from flask import jsonify
 
-    df.columns = df.columns.str.lower()
-    df['province'] = df['province'].str.strip()
-
-    # Calculate the mean price
-    df['price'] = (df['minimum'] + df['maximum']) / 2
-    if crop == "Wheat":
-        df = df[['date', 'station_id','province', 'lat', 'long', 'maximum']]
+@app.route('/get_heatmap_data')
+def get_heatmap_data():
+    try:
+        # Read and process the data
+        df = pd.read_csv("new_data/CottonMaster.csv")
+        df['province'] = df['province'].str.strip()
+        df['price'] = (df['minimum'] + df['maximum']) / 2
+        
+        df = df[['date', 'station_id', 'by_product_id', 'province', 'Lat', 'Long', 'price']]
         df['date'] = pd.to_datetime(df['date'])
         df = df.drop_duplicates()
-        df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
-        df['long'] = pd.to_numeric(df['long'], errors='coerce')
-        df = df[(df['date'] == df['date'].max())]
-
-    else:
-        df = df[['date', 'station_id', 'by_product_id','province', 'lat', 'long', 'maximum']]
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.drop_duplicates()
-        df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
-        df['long'] = pd.to_numeric(df['long'], errors='coerce')
-        byproductid = int(input("enter by product id"))
-        df_filtered = df[df['by_product_id'] ==byproductid]
-        print(df_filtered)
-        if df_filtered.empty:
-            print(f"No data found for by-product ID {byproductid}")
-            exit()
-
-        # Find the latest date for the selected by-product
-        latest_date = df_filtered['date'].max()
-        # Convert to datetime object
-        latest_date = pd.to_datetime(latest_date)
-
-        # Format it to 'YYYY-MM-DD' (remove the time part)
-        latest_date = latest_date.strftime('%Y-%m-%d')
-
-        print(latest_date)
-        # Filter DataFrame for a specific date and product
-        df = df[(df['date'] == latest_date) & (df['by_product_id'] == byproductid)]
-
-    # Create a base map focused on Pakistan
-    m = folium.Map(
-        location=[30.0, 70.0], 
-        zoom_start=6,  
-        tiles="openstreetmap",
-        max_bounds=True,
-        attr="Mapbox"
-    )
-
-    # Prepare heatmap data (Lat, Long, price as weight)
-    heat_data = df[['lat', 'long', 'maximum']].values.tolist()
-    df = df.dropna(subset=['maximum'])
-
-    print(df['station_id'].nunique())
-    print(df.isna().sum())
-    # Add heatmap layer
-    HeatMap(
-        heat_data, 
-        name="Heatmap", 
-        min_opacity=0.2, 
-        radius=20,  
-        blur=15, 
-        max_zoom=8
-    ).add_to(m)
-
-    # Ensure vmin and vmax are properly retrieved
-    vmin = df['maximum'].min()
-    vmax = df['maximum'].max()
-
-    # Create a linear colormap with fixed thresholds
-    colormap = branca.colormap.LinearColormap(
-        colors=['blue', 'green', 'yellow', 'red'],  
-        vmin=vmin, 
-        vmax=vmax,
-        caption="Price Intensity"
-    )
-
-    # Generate and manually set sorted thresholds
-    sorted_thresholds = np.linspace(vmin, vmax, num=6)  # Generate 5 steps = 6 edges
-    colormap.thresholds = sorted(sorted_thresholds)  # Ensure proper order
-
-    # Add colormap legend to the map
-    colormap.add_to(m)
-
-    # Restrict map view to Pakistan's bounding box
-    m.fit_bounds([[23, 60], [38, 77]])
+        df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
+        df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
+        
+        # Filter DataFrame
+        df = df[(df['date'] == '2020-12-31') & (df['by_product_id'] == 7)]
+        
+        # Create map with Folium
+        m = Map(
+            location=[30.0, 70.0],
+            zoom_start=6,
+            max_bounds=True,
+            tiles="CartoDB positron",
+            attr="owees ehhe"
+        )
+        
+        # Prepare heatmap data (Lat, Long, price as weight)
+        heat_data = df[['Lat', 'Long', 'price']].values.tolist()
+        
+        # Add heatmap with better visual settings
+        HeatMap(
+            heat_data,
+            name="Heatmap",
+            min_opacity=0.2,
+            radius=20,
+            blur=15,
+            max_zoom=8
+        ).add_to(m)
+        
+        # Create a color scale legend
+        colormap = branca.colormap.LinearColormap(
+            colors=['blue', 'green', 'yellow', 'red'],
+            vmin=df['price'].min(),
+            vmax=df['price'].max(),
+            caption="Price Intensity"
+        )
+        colormap = colormap.to_step(n=5)  # Add discrete tick marks
+        
+        # Add legend to the map
+        colormap.add_to(m)
+        
+        # Restrict map view to a specific bounding box
+        m.fit_bounds([[23, 60], [38, 77]])
+        
+        # Get the HTML representation of the map
+        map_html = m._repr_html_()
+        
+        return jsonify({
+            'map_html': map_html,
+            'min_price': float(df['price'].min()),
+            'max_price': float(df['price'].max())
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
-    # Save the map as an HTML file with the unique filename
-    # m.save(filename)
-
-    # print(f"Map saved as {filename}")
 if __name__ == '__main__':
     app.run(debug=True)

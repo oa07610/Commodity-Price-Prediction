@@ -591,7 +591,7 @@
         <canvas id="commodityChart"></canvas>
       </div>
     </div>
-    <div class="chart-container">
+    <!-- <div class="chart-container">
       <h2 class="section-title">Price Distribution Heatmap</h2>
       <div class="control-grid mb-4">
         <div class="control-item">
@@ -615,7 +615,28 @@
         </div>
         <div id="heatmapLegend" class="text-sm text-gray-600"></div>
       </div>
+    </div> -->
+
+
+    <!-- INSERT HEATMAP HERE -->
+
+    <div class="graph-controls">
+      <h2 class="section-title">Price Distribution Heatmap</h2>
+      <div class="control-grid mb-4">
+        <div class="control-item">
+          <label for="heatmapCrop">Select Crop</label>
+          <select id="heatmapCrop" class="w-full">
+            <option value="">Choose a crop</option>
+            <option value="Cotton">Cotton</option>
+            <option value="Sugar">Sugar</option>
+            <option value="Maize">Maize</option>
+          </select>
+        </div>
+      </div>
+      <div id="heatmapContainer" class="chart-container" style="height: 600px; width: 100%;"></div>
     </div>
+
+
     
     <!-- Update the commodity checkboxes section -->
 <!-- Update the commodity checkboxes section -->
@@ -819,37 +840,83 @@
         });
     });
   </script>
-  <!-- Update the heatmap JavaScript code -->
+
+  
+  <!-- HEATMAP SCRIPTTTT -->
+   
+
+  <!-- <script>
+    document.getElementById('heatmapCrop').addEventListener('change', function() {
+        const crop = this.value;
+        if (crop) {
+            loadHeatmap();
+        }
+    });
+    
+    function loadHeatmap() {
+        fetch('/get_heatmap_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                // Create container for the map if it doesn't exist
+                const container = document.getElementById('heatmapContainer');
+                container.innerHTML = ""; // Clear the container before re-rendering the map
+                
+                // Initialize the map (center on a default location)
+                const map = L.map('heatmapContainer').setView([30.0, 70.0], 6);  // Default coordinates and zoom level
+  
+                // Add OpenStreetMap tile layer
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                }).addTo(map);
+                
+                // Prepare heatmap data for Leaflet
+                const heatData = data.heat_data.map(item => [item[0], item[1], item[2]]);
+                
+                // Add heatmap layer
+                L.heatLayer(heatData, {
+                    minOpacity: 0.2,
+                    radius: 20,
+                    blur: 15,
+                    maxZoom: 8
+                }).addTo(map);
+            })
+            .catch(error => console.error('Error fetching heatmap data:', error));
+    }
+  </script> -->
+  
+
   <script>
     document.getElementById('heatmapCrop').addEventListener('change', function() {
-      const crop = this.value;
-      if (crop) {
-        fetchHeatmapData(crop);
-      }
+        const crop = this.value;
+        if (crop) {
+            loadHeatmap();
+        }
     });
-  
-    function fetchHeatmapData(crop) {
-      fetch(`/api/heatmap-data/${crop}`)
-        .then(response => response.json())
-        .then(data => {
-          if (data.error) {
-            alert(data.error);
-            return;
-          }
-          updateHeatmapVisualization(data);
-        })
-        .catch(error => console.error("Error fetching heatmap data:", error));
+    
+    function loadHeatmap() {
+        fetch('/get_heatmap_data')
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                // Create container for the map if it doesn't exist
+                const container = document.getElementById('heatmapContainer');
+                container.innerHTML = ""; // Clear the container before re-rendering the map
+                
+                // Insert the Folium map HTML into the container
+                container.innerHTML = data.map_html;
+            })
+            .catch(error => console.error('Error fetching heatmap data:', error));
     }
-  
-    function updateHeatmapVisualization(data) {
-      // Assuming you're using Leaflet.js or any mapping library to visualize the heatmap
-      const heatmapLayer = L.heatLayer(
-        data.map(item => [item.lat, item.long, item.price]), 
-        { radius: 25 }
-      );
-      heatmapLayer.addTo(map);
-    }
-  </script>
+</script>
   
   <script>
       document.getElementById('province').addEventListener('change', function() {
