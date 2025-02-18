@@ -472,6 +472,19 @@
       .top-bar {
         padding: 0 1rem;
       }
+      .heatmapContainer {
+        padding: 0;
+        margin: 0;
+        height: 350px; /* Adjust height */
+        overflow: hidden;
+    }
+      .heatmapContainer iframe {
+        width: 100%;
+        height: 350px 
+        display: block;
+        border: none;
+      }
+    
       
     }
   </style>
@@ -633,7 +646,7 @@
           </select>
         </div>
       </div>
-      <div id="heatmapContainer" class="chart-container" style="height: 600px; width: 100%;"></div>
+      <div id="heatmapContainer" class="chart-container" style="height: 400px; width: 100%;"></div>
     </div>
 
 
@@ -899,23 +912,36 @@
     });
     
     function loadHeatmap() {
-        fetch('/get_heatmap_data')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error:', data.error);
-                    return;
-                }
-                
-                // Create container for the map if it doesn't exist
-                const container = document.getElementById('heatmapContainer');
-                container.innerHTML = ""; // Clear the container before re-rendering the map
-                
-                // Insert the Folium map HTML into the container
-                container.innerHTML = data.map_html;
-            })
-            .catch(error => console.error('Error fetching heatmap data:', error));
-    }
+      fetch('/get_heatmap_data')
+          .then(response => response.json())
+          .then(data => {
+              if (data.error) {
+                  console.error('Error:', data.error);
+                  return;
+              }
+              
+              const container = document.getElementById('heatmapContainer');
+              container.innerHTML = ""; // Clear previous content
+  
+              // Create a temporary div to insert the HTML
+              const tempDiv = document.createElement('div');
+              tempDiv.innerHTML = data.map_html;
+  
+              // Extract the iframe
+              const iframe = tempDiv.querySelector('iframe');
+              if (iframe) {
+                  iframe.style.width = "100%";
+                  iframe.style.height = "350px"; // Ensure it matches the container
+                  iframe.style.border = "none"; // Remove border
+                  
+              }
+  
+              // Append iframe to container
+              container.appendChild(tempDiv.firstElementChild);
+          })
+          .catch(error => console.error('Error fetching heatmap data:', error));
+      }
+  
 </script>
   
   <script>

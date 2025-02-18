@@ -707,7 +707,9 @@ def get_heatmap_data():
             zoom_start=6,
             max_bounds=True,
             tiles="CartoDB positron",
-            attr="owees ehhe"
+            attr="owees ehhe",
+            width="100%",  # Full width
+            height="350px"  # Reduce height (Default is taller)
         )
         
         # Prepare heatmap data (Lat, Long, price as weight)
