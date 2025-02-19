@@ -769,7 +769,7 @@ def get_heatmap_data():
         # Create the map with an initial view
         m = Map(
             location=[30.0, 70.0],  # Default center (Pakistan)
-            zoom_start=8,  # Initial zoom
+            zoom_start=4,  # Initial zoom
             max_bounds=True,
             tiles="CartoDB positron",
             width="100%",
@@ -796,7 +796,7 @@ def get_heatmap_data():
             min_opacity=0.2,
             radius=20,
             blur=15,
-            max_zoom=8
+            max_zoom=4,
         ).add_to(m)
 
         for _, row in df.iterrows():
