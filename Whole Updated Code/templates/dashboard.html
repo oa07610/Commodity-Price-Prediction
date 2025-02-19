@@ -643,6 +643,24 @@
             <option value="Cotton">Cotton</option>
             <option value="Sugar">Sugar</option>
             <option value="Maize">Maize</option>
+            <option value="Wheat">Wheat</option>
+          </select>
+        </div>
+        <div class="control-item" id="heatmap_byProductContainer_cotton" style="display: none;">
+          <label for="byProduct">By Product</label>
+          <select id="byProduct_cotton">
+            <option value="">Select by-product</option>
+            <option value="7">Phutti_7</option>
+            <option value="14">Lint_Cotton_14</option>
+          </select>
+        </div>
+        <div class="control-item" id="heatmap_byProductContainer_sugar" style="display: none;">
+          <label for="byProduct">By Product</label>
+          <select id="byProduct_sugar">
+            <option value="">Select by-product</option>
+            <option value="15">15</option>
+            <option value="16">16</option>
+            <option value="17">17</option>
           </select>
         </div>
       </div>
@@ -902,47 +920,80 @@
     }
   </script> -->
   
-
   <script>
     document.getElementById('heatmapCrop').addEventListener('change', function() {
         const crop = this.value;
-        if (crop) {
-            loadHeatmap();
+        const byProductCottonContainer = document.getElementById('heatmap_byProductContainer_cotton');
+        const byProductSugarContainer = document.getElementById('heatmap_byProductContainer_sugar');
+        
+        // Hide both by-product dropdowns initially
+        byProductCottonContainer.style.display = "none";
+        byProductSugarContainer.style.display = "none";
+    
+        // Show the relevant by-product dropdown if needed
+        if (crop === 'Cotton') {
+            byProductCottonContainer.style.display = "block";
+        } else if (crop === 'Sugar') {
+            byProductSugarContainer.style.display = "block";
         }
+    
+        // Load heatmap for the selected crop
+        loadHeatmap();
+    });
+    
+    // Listen for changes in the Cotton by-product dropdown
+    document.getElementById('byProduct_cotton').addEventListener('change', function() {
+        loadHeatmap();
+    });
+    
+    // Listen for changes in the Sugar by-product dropdown
+    document.getElementById('byProduct_sugar').addEventListener('change', function() {
+        loadHeatmap();
     });
     
     function loadHeatmap() {
-      fetch('/get_heatmap_data')
-          .then(response => response.json())
-          .then(data => {
-              if (data.error) {
-                  console.error('Error:', data.error);
-                  return;
-              }
-              
-              const container = document.getElementById('heatmapContainer');
-              container.innerHTML = ""; // Clear previous content
-  
-              // Create a temporary div to insert the HTML
-              const tempDiv = document.createElement('div');
-              tempDiv.innerHTML = data.map_html;
-  
-              // Extract the iframe
-              const iframe = tempDiv.querySelector('iframe');
-              if (iframe) {
-                  iframe.style.width = "100%";
-                  iframe.style.height = "350px"; // Ensure it matches the container
-                  iframe.style.border = "none"; // Remove border
-                  
-              }
-  
-              // Append iframe to container
-              container.appendChild(tempDiv.firstElementChild);
-          })
-          .catch(error => console.error('Error fetching heatmap data:', error));
-      }
-  
-</script>
+        const crop = document.getElementById('heatmapCrop').value;
+        let byProduct = "";
+    
+        // Check selected by-product for Cotton
+        if (crop === "Cotton") {
+            byProduct = document.getElementById('byProduct_cotton').value;
+        } 
+        // Check selected by-product for Sugar
+        else if (crop === "Sugar") {
+            byProduct = document.getElementById('byProduct_sugar').value;
+        }
+    
+        fetch(`/get_heatmap_data?crop=${encodeURIComponent(crop)}&by_product=${encodeURIComponent(byProduct)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.error('Error:', data.error);
+                    return;
+                }
+                
+                const container = document.getElementById('heatmapContainer');
+                container.innerHTML = ""; // Clear previous content
+    
+                // Create a temporary div to insert the HTML
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = data.map_html;
+    
+                // Extract the iframe
+                const iframe = tempDiv.querySelector('iframe');
+                if (iframe) {
+                    iframe.style.width = "100%";
+                    iframe.style.height = "350px"; // Ensure it matches the container
+                    iframe.style.border = "none"; // Remove border
+                }
+    
+                // Append iframe to container
+                container.appendChild(tempDiv.firstElementChild);
+            })
+            .catch(error => console.error('Error fetching heatmap data:', error));
+    }
+    </script>
+    
   
   <script>
       document.getElementById('province').addEventListener('change', function() {

@@ -684,38 +684,94 @@ import branca
 import json
 from flask import jsonify
 
+# Mapping crop names to CSV file paths
+CROP_CSV_MAPPING = {
+    "cotton": "new_data/CottonMaster.csv",
+    "sugar": "new_data/SugarMaster.csv",
+    "wheat": "new_data/WheatMaster.csv",
+    "maize": "new_data/MaizeMaster.csv"
+}
+
 @app.route('/get_heatmap_data')
 def get_heatmap_data():
     try:
-        # Read and process the data
-        df = pd.read_csv("new_data/CottonMaster.csv")
+        # Get parameters from the request
+        crop = request.args.get('crop', '').strip().lower()
+        print(f"Received crop: {crop}")
+        by_product = request.args.get('by_product', '')
+
+        # Ensure a valid crop is selected
+        if crop not in CROP_CSV_MAPPING:
+            return jsonify({'error': 'Invalid or missing crop selection'}), 400
+
+        # Load CSV based on selected crop
+        csv_path = CROP_CSV_MAPPING[crop]
+        print(f"Loading CSV: {csv_path}")
+        df = pd.read_csv(csv_path)
+
+        # Debug: Check if data loaded correctly
+        print(f"DataFrame Shape before filtering: {df.shape}")
+        print("Column Names:", df.columns)
+        print(df.head())
+
+        # Data Cleaning & Processing
+        df.columns = df.columns.str.lower()  # Standardize column names
         df['province'] = df['province'].str.strip()
         df['price'] = (df['minimum'] + df['maximum']) / 2
+        if crop == "wheat":
+            df = df[['date', 'station_id', 'province', 'lat', 'long', 'maximum','price']]
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.drop_duplicates()
+            df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
+            df['long'] = pd.to_numeric(df['long'], errors='coerce')
+        else:
+            df = df[['date', 'station_id', 'by_product_id', 'province', 'lat', 'long', 'price']]
+            df['date'] = pd.to_datetime(df['date'])
+            df = df.drop_duplicates()
+            df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
+            df['long'] = pd.to_numeric(df['long'], errors='coerce')
+
+        # Debug: Check unique dates before filtering
+        print("Available Dates before filtering:", df['date'].unique())
+        # Apply by_product filter if provided
+        if by_product:
+            try:
+                by_product_id = int(by_product)
+                print("by product value",by_product_id)
+                print(f"Filtering for by_product_id: {by_product_id}")
+                print("Available by_product_id values:", df['by_product_id'].unique())
+                df = df[df['by_product_id'] == by_product_id]
+                print(f"Rows after filtering by by_product_id: {len(df)}")
+            except ValueError:
+                return jsonify({'error': 'Invalid by-product ID'}), 400
+        if df.empty:
+            return jsonify({'error': 'No data available for the selected filters'}), 404
+        # Apply date filter
+        latest_date = df['date'].max()
+    # Convert to datetime object
+        latest_date = pd.to_datetime(latest_date)
+
+    # Format it to 'YYYY-MM-DD' (remove the time part)
+        target_date = latest_date.strftime('%Y-%m-%d')
+        df = df[df['date'] == target_date]
+        print(f"Rows after filtering by date {target_date}: {len(df)}")
+        # Ensure data is available
         
-        df = df[['date', 'station_id', 'by_product_id', 'province', 'Lat', 'Long', 'price']]
-        df['date'] = pd.to_datetime(df['date'])
-        df = df.drop_duplicates()
-        df['Lat'] = pd.to_numeric(df['Lat'], errors='coerce')
-        df['Long'] = pd.to_numeric(df['Long'], errors='coerce')
-        
-        # Filter DataFrame
-        df = df[(df['date'] == '2020-12-31') & (df['by_product_id'] == 7)]
-        
-        # Create map with Folium
+
+        # Create the Folium Map
         m = Map(
             location=[30.0, 70.0],
             zoom_start=6,
             max_bounds=True,
             tiles="CartoDB positron",
-            attr="owees ehhe",
-            width="100%",  # Full width
-            height="350px"  # Reduce height (Default is taller)
+            width="100%",
+            height="350px"
         )
-        
-        # Prepare heatmap data (Lat, Long, price as weight)
-        heat_data = df[['Lat', 'Long', 'price']].values.tolist()
-        
-        # Add heatmap with better visual settings
+
+        # Prepare heatmap data
+        heat_data = df[['lat', 'long', 'price']].dropna().values.tolist()
+
+        # Add HeatMap layer
         HeatMap(
             heat_data,
             name="Heatmap",
@@ -724,34 +780,29 @@ def get_heatmap_data():
             blur=15,
             max_zoom=8
         ).add_to(m)
-        
-        # Create a color scale legend
+
+        # Add color scale legend
         colormap = branca.colormap.LinearColormap(
             colors=['blue', 'green', 'yellow', 'red'],
             vmin=df['price'].min(),
             vmax=df['price'].max(),
             caption="Price Intensity"
-        )
-        colormap = colormap.to_step(n=5)  # Add discrete tick marks
-        
-        # Add legend to the map
+        ).to_step(n=5)
+
         colormap.add_to(m)
-        
-        # Restrict map view to a specific bounding box
         m.fit_bounds([[23, 60], [38, 77]])
-        
-        # Get the HTML representation of the map
+
+        # Convert map to HTML
         map_html = m._repr_html_()
-        
+
         return jsonify({
             'map_html': map_html,
             'min_price': float(df['price'].min()),
             'max_price': float(df['price'].max())
         })
-        
+
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 
 if __name__ == '__main__':
     app.run(debug=True)
