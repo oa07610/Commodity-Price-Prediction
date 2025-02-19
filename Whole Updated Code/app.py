@@ -17,7 +17,8 @@ import os
 from flask import send_from_directory
 from werkzeug.utils import secure_filename
 from functools import wraps
-from folium import Map
+import folium
+from folium import Map, CircleMarker, Marker, Tooltip, Icon
 from folium.plugins import HeatMap
 import pandas as pd
 import branca
@@ -758,15 +759,32 @@ def get_heatmap_data():
         # Ensure data is available
         
 
-        # Create the Folium Map
+                # Create Folium Map
+                        
+                
+        # Ensure lat/lon are numeric
+        df['lat'] = pd.to_numeric(df['lat'], errors='coerce')
+        df['long'] = pd.to_numeric(df['long'], errors='coerce')
+
+        # Create the map with an initial view
         m = Map(
-            location=[30.0, 70.0],
-            zoom_start=6,
+            location=[30.0, 70.0],  # Default center (Pakistan)
+            zoom_start=8,  # Initial zoom
             max_bounds=True,
             tiles="CartoDB positron",
             width="100%",
             height="350px"
         )
+
+        # Add the heatmap
+        heat_data = list(zip(df['lat'], df['long'], df['price']))  # Assuming price influences intensity
+        HeatMap(heat_data).add_to(m)
+
+        # **Fit map to the data points**
+        if not df.empty:
+            sw = [df['lat'].min(), df['long'].min()]  # Southwest corner
+            ne = [df['lat'].max(), df['long'].max()]  # Northeast corner
+            m.fit_bounds([sw, ne])  # Auto-zoom based on bounds
 
         # Prepare heatmap data
         heat_data = df[['lat', 'long', 'price']].dropna().values.tolist()
@@ -781,6 +799,16 @@ def get_heatmap_data():
             max_zoom=8
         ).add_to(m)
 
+        for _, row in df.iterrows():
+            folium.CircleMarker(
+                location=[row['lat'], row['long']],
+                radius=5,  # Smallest possible size
+                color="transparent",  # No border color
+                fill=True,
+                fill_color="transparent",  # Fully transparent fill
+                fill_opacity=0,  # 0 opacity to ensure invisibility
+                tooltip=f"Price: {row['price']:.2f} PKR"
+            ).add_to(m)
         # Add color scale legend
         colormap = branca.colormap.LinearColormap(
             colors=['blue', 'green', 'yellow', 'red'],
@@ -803,6 +831,5 @@ def get_heatmap_data():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
-
 if __name__ == '__main__':
     app.run(debug=True)
