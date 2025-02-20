@@ -215,44 +215,98 @@ def newsletter():
 
 @app.route('/external')
 def external():
-    # Read petrol price data
-    petrol_df = pd.read_csv('external_factor_data\petrol_prices.csv')
+    try:
+        # Read crop production data
+        wheat_df = pd.read_csv('external_factor_data/wheat_production.csv')
+        cotton_df = pd.read_csv('external_factor_data/cotton_production.csv')
+        sugar_df = pd.read_csv('external_factor_data/sugar_production.csv')
+        maize_df = pd.read_csv('external_factor_data/maize_production.csv')
+
+        # Get list of years
+        years = wheat_df['YEAR'].unique().tolist()
+        
+        # Get initial data (latest year)
+        latest_year = years[-1]  # Get the last year from the list
+        
+        # Convert data to lists for initial charts
+        initial_wheat_data = [
+            float(wheat_df[wheat_df['YEAR'] == latest_year]['Punjab'].iloc[0]),
+            float(wheat_df[wheat_df['YEAR'] == latest_year]['Sindh'].iloc[0]),
+            float(wheat_df[wheat_df['YEAR'] == latest_year]['KPK'].iloc[0]),
+            float(wheat_df[wheat_df['YEAR'] == latest_year]['Balochistan'].iloc[0])
+        ]
+        
+        initial_cotton_data = [
+            float(cotton_df[cotton_df['YEAR'] == latest_year]['Punjab'].iloc[0]),
+            float(cotton_df[cotton_df['YEAR'] == latest_year]['Sindh'].iloc[0]),
+            float(cotton_df[cotton_df['YEAR'] == latest_year]['KPK'].iloc[0]),
+            float(cotton_df[cotton_df['YEAR'] == latest_year]['Balochistan'].iloc[0])
+        ]
+        
+        initial_sugar_data = [
+            float(sugar_df[sugar_df['YEAR'] == latest_year]['Punjab'].iloc[0]),
+            float(sugar_df[sugar_df['YEAR'] == latest_year]['Sindh'].iloc[0]),
+            float(sugar_df[sugar_df['YEAR'] == latest_year]['KPK'].iloc[0]),
+            float(sugar_df[sugar_df['YEAR'] == latest_year]['Balochistan'].iloc[0])
+        ]
+        
+        initial_maize_data = [
+            float(maize_df[maize_df['YEAR'] == latest_year]['Punjab'].iloc[0]),
+            float(maize_df[maize_df['YEAR'] == latest_year]['Sindh'].iloc[0]),
+            float(maize_df[maize_df['YEAR'] == latest_year]['KPK'].iloc[0]),
+            float(maize_df[maize_df['YEAR'] == latest_year]['Balochistan'].iloc[0])
+        ]
+    except Exception as e:
+        flash(f'Error loading crop production data: {str(e)}', 'danger')
+        return redirect(url_for('index'))
+    # Previous data for other charts
+    petrol_df = pd.read_csv('external_factor_data/Petrol Prices.csv')
     petrol_dates = petrol_df['date'].tolist()
     petrol_prices = petrol_df['price'].tolist()
 
-    # Read inflation data
-    inflation_df = pd.read_csv('external_factor_data\inflation_rates.csv')
+    inflation_df = pd.read_csv('external_factor_data/pakistan-inflation-rate-cpi.csv')
     inflation_dates = inflation_df['date'].tolist()
-    inflation_rates = inflation_df['rate'].tolist()
-
-    # For USD/PKR rate, use the API from exchangerate-api.com
-    usd_response = requests.get('https://v6.exchangerate-api.com/v6/YOUR_API_KEY/latest/USD')
-    usd_data = usd_response.json()
-    usd_rate = usd_data['conversion_rates']['PKR']
-
-    # For temperature data, use the OpenWeatherMap API
-    weather_api_key = 'c0363e5d2fde46e098f134021252001'
-    cities = ['Islamabad', 'Lahore', 'Karachi', 'Peshawar', 'Quetta']
-    temperature_data = []
-    
-    for city in cities:
-        weather_response = requests.get(
-            f'https://api.openweathermap.org/data/2.5/weather?q={city},PK&appid={weather_api_key}&units=metric'
-        )
-        weather_data = weather_response.json()
-        temperature_data.append(weather_data['main']['temp'])
+    inflation_rates = inflation_df['per_Capita'].tolist()
 
     return render_template('external.html',
+        years=years,
+        initial_wheat_data=initial_wheat_data,
+        initial_cotton_data=initial_cotton_data,
+        initial_sugar_data=initial_sugar_data,
+        initial_maize_data=initial_maize_data,
         petrol_dates=json.dumps(petrol_dates),
         petrol_prices=json.dumps(petrol_prices),
         inflation_dates=json.dumps(inflation_dates),
         inflation_rates=json.dumps(inflation_rates),
-        usd_dates=json.dumps(['Today']),
-        usd_rates=json.dumps([usd_rate]),
-        temperature_dates=json.dumps(cities),
-        temperature_data=json.dumps(temperature_data),
         last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
+@app.route('/get_crop_production_data/<int:year>')
+def get_crop_production_data(year):
+    # Read crop data
+    wheat_df = pd.read_csv('external_factor_data/wheat_production.csv')
+    cotton_df = pd.read_csv('external_factor_data/cotton_production.csv')
+    sugar_df = pd.read_csv('external_factor_data/sugar_production.csv')
+    maize_df = pd.read_csv('external_factor_data/maize_production.csv')
+
+    # Get data for the selected year
+    return jsonify({
+        'wheat': get_province_data(wheat_df, year),
+        'cotton': get_province_data(cotton_df, year),
+        'sugar': get_province_data(sugar_df, year),
+        'maize': get_province_data(maize_df, year)
+    })
+
+def get_province_data(df, year):
+    # Get row for the specified year
+    year_data = df[df['YEAR'] == year].iloc[0]
+    
+    # Return province-wise data
+    return {
+        'Punjab': year_data['Punjab'],
+        'Sindh': year_data['Sindh'],
+        'KPK': year_data['KPK'],
+        'Balochistan': year_data['Balochistan']
+    }
 
 
 # Temporary storage for verification codes

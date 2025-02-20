@@ -254,8 +254,14 @@
 
         .chart-container {
             position: relative;
-            height: 300px;
+            height: 450px;
             width: 100%;
+        }
+        .page-title h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
         }
 
         @media (max-width: 1200px) {
@@ -280,6 +286,8 @@
             }
         }
     </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 <body>
 
@@ -344,58 +352,98 @@
     <!-- Updated Content Area -->
     <div class="content">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
-                <h1 class="h3 mb-1">External Factors Dashboard</h1>
-                <p class="text-muted">Monitor market factors affecting agricultural commodities</p>
+            <div class="page-title">
+                <h1>External Factors Dashboard</h1>
+                <p>Monitor market factors affecting agricultural commodities</p>
             </div>
             <div class="last-updated text-muted">
                 Last updated: <span id="lastUpdated">{{ last_updated }}</span>
             </div>
         </div>
+         <!-- Year Selection Dropdown -->
+    <div class="mb-4">
+        <select id="yearSelector" class="form-select" style="width: 200px;" onchange="updatePieCharts(this.value)">
+            {% for year in years %}
+            <option value="{{ year }}">{{ year }}</option>
+            {% endfor %}
+        </select>
+    </div>
 
-        <div class="dashboard-grid">
-            <!-- Petrol Price Card -->
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">Petrol Price Trends</h3>
-                    <i class="ri-gas-station-line card-icon"></i>
-                </div>
-                <div class="chart-container">
-                    <canvas id="petrolChart"></canvas>
-                </div>
+    <div class="dashboard-grid">
+        <!-- Wheat Production Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Wheat Production Distribution</h3>
+                <i class="ri-plant-line card-icon"></i>
             </div>
-
-            <!-- USD Exchange Rate Card -->
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">USD/PKR Exchange Rate</h3>
-                    <i class="ri-exchange-dollar-line card-icon"></i>
-                </div>
-                <div class="chart-container">
-                    <canvas id="usdChart"></canvas>
-                </div>
+            <div class="chart-container">
+                <canvas id="wheatChart"></canvas>
             </div>
-
-            <!-- Inflation Rate Card -->
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">Inflation Rate Trend</h3>
-                    <i class="ri-line-chart-line card-icon"></i>
-                </div>
-                <div class="chart-container">
-                    <canvas id="inflationChart"></canvas>
-                </div>
+        </div>
+    
+        <!-- Cotton Production Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Cotton Production Distribution</h3>
+                <i class="ri-plant-line card-icon"></i>
             </div>
-
-            <!-- Temperature Heatmap Card -->
-            <div class="dashboard-card">
-                <div class="card-header">
-                    <h3 class="card-title">Pakistan Temperature Heatmap</h3>
-                    <i class="ri-temp-hot-line card-icon"></i>
-                </div>
-                <div class="chart-container">
-                    <canvas id="temperatureChart"></canvas>
-                </div>
+            <div class="chart-container">
+                <canvas id="cottonChart"></canvas>
+            </div>
+        </div>
+    
+        <!-- Sugar Production Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Sugar Production Distribution</h3>
+                <i class="ri-plant-line card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <canvas id="sugarChart"></canvas>
+            </div>
+        </div>
+    
+        <!-- Maize Production Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Maize Production Distribution</h3>
+                <i class="ri-plant-line card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <canvas id="maizeChart"></canvas>
+            </div>
+        </div>
+    
+        <!-- Petrol Price Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Petrol Price Trends</h3>
+                <i class="ri-gas-station-line card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <canvas id="petrolChart"></canvas>
+            </div>
+        </div>
+    
+        <!-- Inflation Rate Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Per Capita Growth Trend</h3>
+                <i class="ri-line-chart-line card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <canvas id="inflationChart"></canvas>
+            </div>
+        </div>
+    
+        <!-- Temperature Heatmap Card -->
+        <div class="dashboard-card">
+            <div class="card-header">
+                <h3 class="card-title">Pakistan Temperature Heatmap</h3>
+                <i class="ri-temp-hot-line card-icon"></i>
+            </div>
+            <div class="chart-container">
+                <iframe src="/static/heatmap.html" width="100%" height="450px" style="border:none; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);"></iframe>
             </div>
         </div>
     </div>
@@ -412,11 +460,126 @@
             window.location.href = "{{ url_for('logout') }}"; // Use Flask's url_for to generate the logout URL
           }
         });
-        // Chart initialization
-        function initializeCharts() {
-            // Petrol Price Chart
+    </script>
+    <script>
+        // Add an event listener to the logout button
+        document.querySelector('.logout-btn').addEventListener('click', function(event) {
+            event.preventDefault();
+            const confirmLogout = confirm('Are you sure you want to logout?');
+            if (confirmLogout) {
+                window.location.href = "{{ url_for('logout') }}";
+            }
+        });
+    
+        let wheatChart, cottonChart, sugarChart, maizeChart;
+        
+        function createPieChart(ctx, data, title) {
+            return new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Punjab', 'Sindh', 'KPK', 'Balochistan'],
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#2ecc71',
+                            '#3498db',
+                            '#e74c3c',
+                            '#f1c40f'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: title
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updatePieCharts(year) {
+            fetch(`/get_crop_production_data/${year}`)
+                .then(response => response.json())
+                .then(data => {
+                    wheatChart.data.datasets[0].data = [
+                        data.wheat.Punjab,
+                        data.wheat.Sindh,
+                        data.wheat.KPK,
+                        data.wheat.Balochistan
+                    ];
+                    wheatChart.update();
+        
+                    cottonChart.data.datasets[0].data = [
+                        data.cotton.Punjab,
+                        data.cotton.Sindh,
+                        data.cotton.KPK,
+                        data.cotton.Balochistan
+                    ];
+                    cottonChart.update();
+        
+                    sugarChart.data.datasets[0].data = [
+                        data.sugar.Punjab,
+                        data.sugar.Sindh,
+                        data.sugar.KPK,
+                        data.sugar.Balochistan
+                    ];
+                    sugarChart.update();
+        
+                    maizeChart.data.datasets[0].data = [
+                        data.maize.Punjab,
+                        data.maize.Sindh,
+                        data.maize.KPK,
+                        data.maize.Balochistan
+                    ];
+                    maizeChart.update();
+                })
+                .catch(error => {
+                    console.error('Error updating charts:', error);
+                });
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Debug data
+            console.log('Petrol dates:', {{ petrol_dates | safe }});
+            console.log('Petrol prices:', {{ petrol_prices | safe }});
+            console.log('Inflation dates:', {{ inflation_dates | safe }});
+            console.log('Inflation rates:', {{ inflation_rates | safe }});
+    
+            // Initialize pie charts with initial data
+            wheatChart = createPieChart(
+                document.getElementById('wheatChart').getContext('2d'),
+                {{ initial_wheat_data | safe }},
+                'Wheat Production Distribution'
+            );
+            
+            cottonChart = createPieChart(
+                document.getElementById('cottonChart').getContext('2d'),
+                {{ initial_cotton_data | safe }},
+                'Cotton Production Distribution'
+            );
+            
+            sugarChart = createPieChart(
+                document.getElementById('sugarChart').getContext('2d'),
+                {{ initial_sugar_data | safe }},
+                'Sugar Production Distribution'
+            );
+            
+            maizeChart = createPieChart(
+                document.getElementById('maizeChart').getContext('2d'),
+                {{ initial_maize_data | safe }},
+                'Maize Production Distribution'
+            );
+    
+            // Initialize petrol price chart
             const petrolCtx = document.getElementById('petrolChart').getContext('2d');
-            const petrolChart = new Chart(petrolCtx, {
+            new Chart(petrolCtx, {
                 type: 'line',
                 data: {
                     labels: {{ petrol_dates | safe }},
@@ -433,7 +596,12 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Petrol Price Trends'
                         }
                     },
                     scales: {
@@ -441,6 +609,11 @@
                             beginAtZero: false,
                             grid: {
                                 color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return 'PKR ' + value;
+                                }
                             }
                         },
                         x: {
@@ -451,53 +624,15 @@
                     }
                 }
             });
-
-            // USD Exchange Rate Chart
-            const usdCtx = document.getElementById('usdChart').getContext('2d');
-            const usdChart = new Chart(usdCtx, {
-                type: 'line',
-                data: {
-                    labels: {{ usd_dates | safe }},
-                    datasets: [{
-                        label: 'USD/PKR Rate',
-                        data: {{ usd_rates | safe }},
-                        borderColor: '#3498db',
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Inflation Rate Chart
+    
+            // Initialize inflation rate chart
             const inflationCtx = document.getElementById('inflationChart').getContext('2d');
-            const inflationChart = new Chart(inflationCtx, {
+            new Chart(inflationCtx, {
                 type: 'line',
                 data: {
                     labels: {{ inflation_dates | safe }},
                     datasets: [{
-                        label: 'Inflation Rate (%)',
+                        label: 'Per Capita Growth (%)',
                         data: {{ inflation_rates | safe }},
                         borderColor: '#e74c3c',
                         tension: 0.4,
@@ -509,7 +644,12 @@
                     maintainAspectRatio: false,
                     plugins: {
                         legend: {
-                            display: false
+                            display: true,
+                            position: 'bottom'
+                        },
+                        title: {
+                            display: true,
+                            text: 'Per Capita Growth Trend'
                         }
                     },
                     scales: {
@@ -517,6 +657,11 @@
                             beginAtZero: false,
                             grid: {
                                 color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value + '%';
+                                }
                             }
                         },
                         x: {
@@ -527,48 +672,13 @@
                     }
                 }
             });
-
-            // Temperature Heatmap
-            const temperatureCtx = document.getElementById('temperatureChart').getContext('2d');
-            const temperatureChart = new Chart(temperatureCtx, {
-                type: 'line',
-                data: {
-                    labels: {{ temperature_dates | safe }},
-                    datasets: [{
-                        label: 'Average Temperature (°C)',
-                        data: {{ temperature_data | safe }},
-                        borderColor: '#f39c12',
-                        tension: 0.4,
-                        fill: false
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            display: false
-                        }
-                    },
-                    scales: {
-                        y: {
-                            beginAtZero: false,
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.05)'
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Initialize charts when the page loads
-        document.addEventListener('DOMContentLoaded', initializeCharts);
+    
+            // Set the latest year as selected in the dropdown
+            const yearSelector = document.getElementById('yearSelector');
+            if (yearSelector) {
+                yearSelector.value = yearSelector.options[yearSelector.options.length - 1].value;
+            }
+        });
     </script>
-</body>
+    </body>
 </html>
