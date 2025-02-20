@@ -213,6 +213,48 @@ def newsletter():
 
 
 
+@app.route('/external')
+def external():
+    # Read petrol price data
+    petrol_df = pd.read_csv('external_factor_data\petrol_prices.csv')
+    petrol_dates = petrol_df['date'].tolist()
+    petrol_prices = petrol_df['price'].tolist()
+
+    # Read inflation data
+    inflation_df = pd.read_csv('external_factor_data\inflation_rates.csv')
+    inflation_dates = inflation_df['date'].tolist()
+    inflation_rates = inflation_df['rate'].tolist()
+
+    # For USD/PKR rate, use the API from exchangerate-api.com
+    usd_response = requests.get('https://v6.exchangerate-api.com/v6/YOUR_API_KEY/latest/USD')
+    usd_data = usd_response.json()
+    usd_rate = usd_data['conversion_rates']['PKR']
+
+    # For temperature data, use the OpenWeatherMap API
+    weather_api_key = 'c0363e5d2fde46e098f134021252001'
+    cities = ['Islamabad', 'Lahore', 'Karachi', 'Peshawar', 'Quetta']
+    temperature_data = []
+    
+    for city in cities:
+        weather_response = requests.get(
+            f'https://api.openweathermap.org/data/2.5/weather?q={city},PK&appid={weather_api_key}&units=metric'
+        )
+        weather_data = weather_response.json()
+        temperature_data.append(weather_data['main']['temp'])
+
+    return render_template('external.html',
+        petrol_dates=json.dumps(petrol_dates),
+        petrol_prices=json.dumps(petrol_prices),
+        inflation_dates=json.dumps(inflation_dates),
+        inflation_rates=json.dumps(inflation_rates),
+        usd_dates=json.dumps(['Today']),
+        usd_rates=json.dumps([usd_rate]),
+        temperature_dates=json.dumps(cities),
+        temperature_data=json.dumps(temperature_data),
+        last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    )
+
+
 # Temporary storage for verification codes
 verification_data = {}
 @app.route('/signup', methods=['POST'])
