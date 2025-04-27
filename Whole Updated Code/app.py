@@ -25,7 +25,7 @@ import branca
 import json
 from flask import jsonify
     
-
+from flask import Flask, render_template, request, redirect, url_for, flash, session, make_response
 app = Flask(__name__)
 CORS(app)
 app.config['SECRET_KEY'] = '55fc588fcd7ef7e247fa6db7953d398f16520b1aeacabd74'  # Replace with a strong secret key
@@ -75,7 +75,7 @@ except (FileNotFoundError, json.JSONDecodeError):
         json.dump(user_data, file)
 
 #email verification
-EMAIL_VERIFICATION_API_KEY = '72f935f4798841c19d6d8fec794816c1'
+EMAIL_VERIFICATION_API_KEY = '87516c4779374e6f9633d44bbe2b0e51'
 
 # Flask-Mail configuration
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
@@ -331,79 +331,106 @@ def get_province_data(df, year):
 verification_data = {}
 @app.route('/signup', methods=['POST'])
 def signup():
-    fullname = request.form['fullname']
-    username = request.form['username']
-    city = request.form['city']
-    email = request.form['email']
-    phone = request.form['phone']
-    password = request.form['password']
-    confirm_password = request.form['confirm-password']
-    
-    # Validate email with Abstract API
-    api_url = f"https://emailvalidation.abstractapi.com/v1/?api_key={EMAIL_VERIFICATION_API_KEY}&email={email}"
-    response = requests.get(api_url)
-    email_data = response.json()
-    if not email_data['is_valid_format']['value'] or not email_data['deliverability'] == "DELIVERABLE":
-        flash('Invalid or unregistered email address. Please use a valid email.', 'danger')
-        return render_template('index.html', email=email)  # Return to the signup page
-    
-    # Validate username
-    import re
-    username_criteria = re.compile(r'^[a-zA-Z0-9._]{3,15}$')
-    if not username_criteria.match(username):
-        flash('Username must be 3-15 characters long, can include letters, numbers, underscores, and periods. It must not start or end with a special character or contain consecutive special characters.', 'danger')
-        return render_template('index.html', username=username)  # Return to the signup page
-    
-    if ".." in username or "__" in username or "._" in username or "_. " in username:
-        flash('Username must not contain consecutive special characters.', 'danger')
-        return render_template('index.html', username=username)  # Return to the signup page
-    
-    # Validate password complexity
-    password_criteria = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}[\]:;"<>,.?/\\|~-])[A-Za-z\d!@#$%^&*()_+={}[\]:;"<>,.?/\\|`~-]{8,}$')
-    if not password_criteria.match(password):
-        flash('Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number, and a special character.', 'danger')
-        return render_template('index.html', username=username, email=email)  # Return to the signup page
+    try:
+        fullname = request.form['fullname']
+        username = request.form['username']
+        email = request.form['email']
+        phone = request.form['phone']
+        password = request.form['password']
+        confirm_password = request.form['confirm-password']
         
-    if password != confirm_password:
-        flash('Passwords do not match!', 'danger')
-        return render_template('index.html', username=username, email=email)  # Return to the signup page
+        # Validate email with Abstract API
+        api_url = f"https://emailvalidation.abstractapi.com/v1/?api_key={EMAIL_VERIFICATION_API_KEY}&email={email}"
+        response = requests.get(api_url)
+        email_data = response.json()
+        
+        # Safely check email validation result with proper error handling
+        is_valid_format = email_data.get('is_valid_format', {}).get('value', False)
+        deliverability = email_data.get('deliverability', '') == "DELIVERABLE"
+        
+        if not is_valid_format or not deliverability:
+            flash('Invalid or unregistered email address. Please use a valid email.', 'danger')
+            return render_template('index.html', email=email)
+        
+        # Validate username
+        import re
+        username_criteria = re.compile(r'^[a-zA-Z0-9._]{3,15}$')
+        if not username_criteria.match(username):
+            flash('Username must be 3-15 characters long, can include letters, numbers, underscores, and periods. It must not start or end with a special character or contain consecutive special characters.', 'danger')
+            return render_template('index.html', username=username)
+        
+        if ".." in username or "__" in username or "._" in username or "_." in username:
+            flash('Username must not contain consecutive special characters.', 'danger')
+            return render_template('index.html', username=username)
+        
+        # Validate password complexity
+        password_criteria = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}[\]:;"<>,.?/\\|~-])[A-Za-z\d!@#$%^&*()_+={}[\]:;"<>,.?/\\|`~-]{8,}$')
+        if not password_criteria.match(password):
+            flash('Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number, and a special character.', 'danger')
+            return render_template('index.html', username=username, email=email)
+            
+        if password != confirm_password:
+            flash('Passwords do not match!', 'danger')
+            return render_template('index.html', username=username, email=email)
 
-    # Check if username already exists
-    if username in user_data:
-        flash('Username already exists. Please choose a different one.', 'danger')
-        return render_template('index.html', username=username, email=email)  # Return to the signup page
+        # Check if username already exists
+        if username in user_data:
+            flash('Username already exists. Please choose a different one.', 'danger')
+            return render_template('index.html', username=username, email=email)
+        
+        # Check if user exists in the database
+        existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
+        if existing_user:
+            flash('Username or email already exists!', 'danger')
+            return render_template('index.html', username=username, email=email)
+
+        # If all checks pass, proceed to send email for verification
+        verification_code = str(random.randint(100000, 999999))
+        verification_data[email] = {
+            'code': verification_code,
+            'expiry': datetime.now() + timedelta(minutes=1),
+            'username': username,
+            'password': password
+        }
+        session['signup_data'] = {
+            'username': username,
+            'email': email,
+            'password': password,
+            'fullname': fullname,
+            'phone': phone
+        }
+
+        # Send verification email
+        msg = Message('Your Verification Code', sender=app.config['MAIL_USERNAME'], recipients=[email])
+        msg.body = f'Your verification code is {verification_code}. It will expire in 1 minute.'
+        mail.send(msg)
+
+        flash('A verification code has been sent to your email.', 'info')
+        return redirect(url_for('verify', email=email))
+        
+    except KeyError as e:
+        print(f"KeyError: {str(e)}")
+        flash('An error occurred during signup. Please try again.', 'danger')
+        return render_template('index.html')
+    except Exception as e:
+        print(f"Unexpected error: {str(e)}")
+        flash('An unexpected error occurred. Please try again.', 'danger')
+        return render_template('index.html')
+@app.route('/validate_email')
+def validate_email():
+    email = request.args.get('email')
+    if not email:
+        return jsonify({'is_valid': False})
     
-    # Check if user exists in the database
-    existing_user = User.query.filter((User.username == username) | (User.email == email)).first()
-    if existing_user:
-        flash('Username or email already exists!', 'danger')
-        return render_template('index.html', username=username, email=email)  # Return to the signup page
-
-    # If all checks pass, proceed to send email for verification
-    verification_code = str(random.randint(100000, 999999))
-    verification_data[email] = {
-        'code': verification_code,
-        'expiry': datetime.now() + timedelta(minutes=1),
-        'username': username,
-        'password': password
-    }
-    session['signup_data'] = {
-        'username': username,
-        'email': email,
-        'password': password,
-        'city': city,
-        'fullname': fullname,
-        'phone': phone
-    }
-
-    # Send verification email
-    msg = Message('Your Verification Code', sender=app.config['MAIL_USERNAME'], recipients=[email])
-    msg.body = f'Your verification code is {verification_code}. It will expire in 1 minute.'
-    mail.send(msg)
-
-    flash('A verification code has been sent to your email.', 'info')
-    return redirect(url_for('verify', email=email))
-
+    api_url = f"https://emailvalidation.abstractapi.com/v1/?api_key={EMAIL_VERIFICATION_API_KEY}&email={email}"
+    try:
+        response = requests.get(api_url)
+        email_data = response.json()
+        is_valid = email_data['is_valid_format']['value'] and email_data['deliverability'] == "DELIVERABLE"
+        return jsonify({'is_valid': is_valid})
+    except Exception as e:
+        print(f"Error validating email: {str(e)}")
+        return jsonify({'is_valid': False})
 @app.route('/verify/<email>', methods=['GET', 'POST'])
 def verify(email):
     if request.method == 'POST':
@@ -445,35 +472,45 @@ def verify(email):
             return redirect(url_for('index'))
     
     return render_template('verify.html', email=email)
-
-
-@app.route('/login', methods=['POST'])
+@app.route('/login', methods=['GET', 'POST'])
 def login():
+    # If user is already logged in, redirect them
+    if 'user_id' in session:
+        return redirect(url_for('dashboard'))
+
+    if request.method == 'GET':
+        # Clear any existing flash messages when loading the login page directly
+        session.pop('_flashes', None)
+        
+        # Add cache control headers
+        response = make_response(render_template('index.html'))
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+        return response
+        
     if request.method == 'POST':
-            # Get form data
-            username = request.form['username']
-            password = request.form['password']
+        username = request.form['username']
+        password = request.form['password']
+        
+        user = User.query.filter_by(username=username).first()
+        if user and check_password_hash(user.password, password):
+            session['user_id'] = user.id
+            session['username'] = user.username
             
-            # Find user
-            user = User.query.filter_by(username=username).first()
-            if user and check_password_hash(user.password, password):
-                # Login successful
-                session['user_id'] = user.id
-                session['username'] = user.username
-                flash('Logged in successfully!', 'success')
-                session['username'] = username  # Store username in session
-                if user.is_admin:
-                    return redirect(url_for('admin_dashboard'))
-                else:
-                    return redirect(url_for('dashboard'))
-           
-            flash('Invalid username or password!', 'danger')
-            return redirect(url_for('index'))
-    
-    return render_template('index.html')
+            # Set flash message
+            flash('Logged in successfully!', 'success')
+            
+            # Create response with cache control headers
+            response = make_response(redirect(url_for('dashboard' if not user.is_admin else 'admin_dashboard')))
+            response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+            response.headers['Pragma'] = 'no-cache'
+            response.headers['Expires'] = '0'
+            return response
+       
+        flash('Invalid username or password!', 'danger')
+        return redirect(url_for('login'))
 
-
-# @app.route('/ur')
 # def ur_index():
 #     return redirect('/ur/home')  # Redirect to the Urdu home page
 
@@ -490,12 +527,27 @@ def login():
 def index():
     return render_template('index.html')  # Redirect to the English home page
 
+
 @app.route('/logout')
 def logout():
-    session.clear()  # Clear the session data
+    session.clear()
     flash('You have been logged out.', 'info')
-    return redirect(url_for('index'))  # Redirect to the index page
+    
+    response = make_response(redirect(url_for('login')))
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate, private'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
 
+# Add this to handle direct access to pages that require login
+@app.before_request
+def before_request():
+    # List of routes that require authentication
+    protected_routes = ['dashboard', 'admin_dashboard']
+    
+    if request.endpoint in protected_routes and 'user_id' not in session:
+        flash('Please log in to access this page.', 'info')
+        return redirect(url_for('login'))
 # @app.route('/en/home')
 # def en_home():
 #     return render_template('home.html')  # English home page
@@ -806,7 +858,104 @@ CROP_CSV_MAPPING = {
     "wheat": "new_data/WheatMaster.csv",
     "maize": "new_data/MaizeMaster.csv"
 }
-
+@app.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    if request.method == 'POST':
+        email = request.form['email']
+        
+        # Check if the email exists in the database
+        user = User.query.filter_by(email=email).first()
+        if not user:
+            flash('No account found with that email address.', 'danger')
+            return redirect(url_for('forgot_password'))
+        
+        # Generate a verification code
+        reset_code = str(random.randint(100000, 999999))
+        
+        # Store the reset code and its expiry time in the verification_data dictionary
+        verification_data[email] = {
+            'code': reset_code,
+            'expiry': datetime.now() + timedelta(minutes=15),
+            'purpose': 'password_reset'
+        }
+        
+        # Send the verification code via email
+        msg = Message('Password Reset Code', sender=app.config['MAIL_USERNAME'], recipients=[email])
+        msg.body = f'Your password reset code is {reset_code}. It will expire in 15 minutes.'
+        mail.send(msg)
+        
+        flash('A password reset code has been sent to your email.', 'info')
+        return redirect(url_for('reset_password', email=email))
+    
+    return render_template('forgot_password.html')
+@app.route('/reset-password/<email>', methods=['GET', 'POST'])
+def reset_password(email):
+    if request.method == 'POST':
+        try:
+            reset_code = request.form['reset_code']
+            new_password = request.form['new_password']
+            confirm_password = request.form['confirm_password']
+            
+            print(f"Debug - Processing reset for email: {email}")
+            
+            # Validate the reset code
+            if email not in verification_data:
+                flash('Invalid or expired reset link. Please try again.', 'danger')
+                return redirect(url_for('forgot_password'))
+            
+            data = verification_data[email]
+            if datetime.now() > data.get('expiry'):
+                # Remove expired verification data
+                del verification_data[email]
+                flash('The reset code has expired. Please request a new one.', 'danger')
+                return redirect(url_for('forgot_password'))
+            
+            if reset_code != data.get('code') or data.get('purpose') != 'password_reset':
+                flash('Invalid reset code. Please try again.', 'danger')
+                return redirect(url_for('reset_password', email=email))
+            
+            # Validate the new password
+            import re
+            password_criteria = re.compile(r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+={}[\]:;"<>,.?/\\|~-])[A-Za-z\d!@#$%^&*()_+={}[\]:;"<>,.?/\\|`~-]{8,}$')
+            if not password_criteria.match(new_password):
+                flash('Password must be at least 8 characters long, include an uppercase letter, a lowercase letter, a number, and a special character.', 'danger')
+                return redirect(url_for('reset_password', email=email))
+            
+            # Check if passwords match
+            if new_password != confirm_password:
+                flash('Passwords do not match!', 'danger')
+                return redirect(url_for('reset_password', email=email))
+            
+            # Update the user's password
+            user = User.query.filter_by(email=email).first()
+            print(f"Debug - User found: {user is not None}")
+            
+            if user:
+                try:
+                    hashed_password = generate_password_hash(new_password, method='pbkdf2:sha256')
+                    user.password = hashed_password
+                    db.session.commit()
+                    print("Debug - Password updated successfully")
+                    
+                    # Remove the verification data
+                    del verification_data[email]
+                    
+                    flash('Your password has been reset successfully! You can now log in with your new password.', 'success')
+                    return redirect(url_for('index'))
+                except Exception as e:
+                    db.session.rollback()
+                    print(f"Debug - Database error: {str(e)}")
+                    flash('An error occurred while updating your password. Please try again.', 'danger')
+                    return redirect(url_for('reset_password', email=email))
+            else:
+                flash('User not found. Please check your email address.', 'danger')
+                return redirect(url_for('forgot_password'))
+        except Exception as e:
+            print(f"Debug - Unexpected error: {str(e)}")
+            flash('An unexpected error occurred. Please try again.', 'danger')
+            return redirect(url_for('reset_password', email=email))
+    
+    return render_template('reset_password.html', email=email)
 @app.route('/get_heatmap_data')
 def get_heatmap_data():
     try:
