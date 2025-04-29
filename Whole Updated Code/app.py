@@ -691,11 +691,15 @@ def chat():
     
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+# Add these constants at the top with other file constants
+WHEAT_ACTUAL_FILE = 'data/wheat_actual.csv'
+WHEAT_PRED_FILE = 'data/wheat_pred.csv'
 
+# Update the get_sugar_data function to handle Wheat
 @app.route('/get_sugar_data', methods=['GET'])
 def get_sugar_data():
     crop = request.args.get('crop')
-    by_product = request.args.get('by_product')  # Fetch by_product parameter
+    by_product = request.args.get('by_product')
     regions = request.args.get('regions').split(',')
 
     if crop == 'Sugar':
@@ -704,9 +708,12 @@ def get_sugar_data():
     elif crop == 'Maize':
         actual_file = MAIZE_ACTUAL_FILE
         pred_file = MAIZE_PRED_FILE
-    elif crop == 'Cotton':  # Handle Cotton
+    elif crop == 'Cotton':
         actual_file = COTTON_ACTUAL_FILE
         pred_file = COTTON_PRED_FILE
+    elif crop == 'Wheat':
+        actual_file = WHEAT_ACTUAL_FILE
+        pred_file = WHEAT_PRED_FILE
     else:
         return jsonify({'error': 'Invalid crop selected.'}), 400
 
@@ -714,8 +721,8 @@ def get_sugar_data():
     actual_data = pd.read_csv(actual_file)
     pred_data = pd.read_csv(pred_file)
 
-    # Filter by by_product if specified
-    if by_product:
+    # Filter by by_product if specified and if it's Cotton
+    if by_product and crop == 'Cotton':
         actual_data = actual_data[actual_data['by_product'] == int(by_product)]
         pred_data = pred_data[pred_data['by_product'] == int(by_product)]
 
@@ -752,6 +759,8 @@ def get_sugar_data():
         })
 
     return jsonify(result)
+
+# Update the get_crop_data function to handle Wheat
 @app.route('/get_crop_data', methods=['GET'])
 def get_crop_data():
     province = request.args.get('province')
@@ -764,7 +773,8 @@ def get_crop_data():
         'Sugar': (SUGAR_ACTUAL_FILE, SUGAR_PRED_FILE),
         'Maize': (MAIZE_ACTUAL_FILE, MAIZE_PRED_FILE),
         'Cotton-1': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE),
-        'Cotton-2': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE)
+        'Cotton-2': (COTTON_ACTUAL_FILE, COTTON_PRED_FILE),
+        'Wheat': (WHEAT_ACTUAL_FILE, WHEAT_PRED_FILE)
     }
 
     result = []
@@ -812,7 +822,6 @@ def get_crop_data():
         })
 
     return jsonify(result)
-
 # @app.route('/get_heatmap_data')
 # def get_heatmap_data():
 #     try:

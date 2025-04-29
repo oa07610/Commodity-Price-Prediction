@@ -294,19 +294,39 @@
       box-shadow: 0 0 0 3px rgba(46, 204, 113, 0.1);
     }
 
-    .regions-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-      gap: 1rem;
+    
+    /* Target the region checkbox labels specifically */
+    .region-checkbox label {
+      font-size: 20px; /* Reduced font size for region names */
+      margin-left: 4px;
+      line-height: 1; /* Removes extra line height that can cause misalignment */
+      display: inline-block;
+      vertical-align: middle; /* Helps with vertical alignment */
+      white-space: nowrap;
     }
+    
+
+    /* Adjust spacing between region options */
+    .regions-grid {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px 15px;
+      margin-top: 5px;
+    }
+    
 
     .region-checkbox {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
-    }
+      gap: 0.3rem;
+      min-width: 90px; /* Ensures minimum width for each region checkbox */
+      margin-bottom: 8px; /* Adds spacing when items wrap to next line */
+    } 
 
     .region-checkbox input[type="checkbox"] {
+      margin: 0;
+      padding: 0;
       width: 14px;
       height: 14px;
       border-radius: 4px;
@@ -437,6 +457,24 @@
       border-bottom: 2px solid var(--primary-color);
     }
 
+    /* Add a loading indicator for chart generation */
+    .loading-indicator {
+      display: none;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .loading-indicator i {
+      font-size: 2rem;
+      color: var(--primary-color);
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+ 
     @media (max-width: 1024px) {
       .sidebar {
         width: 200px;
@@ -477,15 +515,13 @@
         margin: 0;
         height: 350px; /* Adjust height */
         overflow: hidden;
-    }
+      }
       .heatmapContainer iframe {
         width: 100%;
-        height: 350px 
+        height: 350px; 
         display: block;
         border: none;
       }
-    
-      
     }
   </style>
 </head>
@@ -561,6 +597,7 @@
             <option value="Sugar">Sugar</option>
             <option value="Maize">Maize</option>
             <option value="Cotton">Cotton</option>
+            <option value="Wheat">Wheat</option>
           </select>
         </div>
 
@@ -576,11 +613,11 @@
         <div class="control-item">
           <label>Select Regions</label>
           <div class="regions-grid">
-            <div class="region-checkbox">
+            <div class="region-checkbox" id="regionPunjabContainer">
               <input type="checkbox" id="regionPunjab" value="Punjab">
               <label for="regionPunjab">Punjab</label>
             </div>
-            <div class="region-checkbox">
+            <div class="region-checkbox" id="regionSindhContainer">
               <input type="checkbox" id="regionSindh" value="Sindh">
               <label for="regionSindh">Sindh</label>
             </div>
@@ -588,7 +625,7 @@
               <input type="checkbox" id="regionKPK" value="KPK">
               <label for="regionKPK">KPK</label>
             </div>
-            <div class="region-checkbox" id="regionBalochistanContainer" style="display: none;">
+            <div class="region-checkbox" id="regionBalochistanContainer">
               <input type="checkbox" id="regionBalochistan" value="Balochistan">
               <label for="regionBalochistan">Balochistan</label>
             </div>
@@ -604,34 +641,6 @@
         <canvas id="commodityChart"></canvas>
       </div>
     </div>
-    <!-- <div class="chart-container">
-      <h2 class="section-title">Price Distribution Heatmap</h2>
-      <div class="control-grid mb-4">
-        <div class="control-item">
-          <label for="heatmapCrop">Select Crop</label>
-          <select id="heatmapCrop" class="w-full">
-            <option value="">Choose a crop</option>
-            <option value="Sugar">Sugar</option>
-            <option value="Maize">Maize</option>
-            <option value="Cotton">Cotton</option>
-            <option value="Wheat">Wheat</option>
-          </select>
-        </div>
-      </div>
-      <p id="heatmapDate" class="text-sm text-gray-600 mb-2"></p>
-      <div id="heatmap" style="height: 500px;"></div>
-      <div class="mt-4 flex justify-between items-center">
-        <div class="flex items-center gap-2">
-          <span class="text-sm text-gray-600">Lower Price</span>
-          <div class="w-48 h-4 bg-gradient-to-r from-green-500 via-yellow-500 to-red-500 rounded"></div>
-          <span class="text-sm text-gray-600">Higher Price</span>
-        </div>
-        <div id="heatmapLegend" class="text-sm text-gray-600"></div>
-      </div>
-    </div> -->
-
-
-    <!-- INSERT HEATMAP HERE -->
 
     <div class="graph-controls">
       <h2 class="section-title">Price Distribution Heatmap</h2>
@@ -647,7 +656,7 @@
           </select>
         </div>
         <div class="control-item" id="heatmap_byProductContainer_cotton" style="display: none;">
-          <label for="byProduct">By Product</label>
+          <label for="byProduct_cotton">By Product</label>
           <select id="byProduct_cotton">
             <option value="">Select by-product</option>
             <option value="7">Phutti_7</option>
@@ -655,7 +664,7 @@
           </select>
         </div>
         <div class="control-item" id="heatmap_byProductContainer_sugar" style="display: none;">
-          <label for="byProduct">By Product</label>
+          <label for="byProduct_sugar">By Product</label>
           <select id="byProduct_sugar">
             <option value="">Select by-product</option>
             <option value="15">15</option>
@@ -666,11 +675,8 @@
       </div>
       <div id="heatmapContainer" class="chart-container" style="height: 400px; width: 100%;"></div>
     </div>
-
-
     
     <!-- Update the commodity checkboxes section -->
-<!-- Update the commodity checkboxes section -->
     <div class="commodity-comparison">
       <h2 class="section-title">Commodity Price Comparison</h2>
       <div class="control-grid">
@@ -704,6 +710,10 @@
               <input type="checkbox" id="compareSugar" value="Sugar">
               <label for="compareSugar">Sugar</label>
             </div>
+            <div class="commodity-checkbox">
+              <input type="checkbox" id="compareWheat" value="Wheat">
+              <label for="compareWheat">Wheat</label>
+            </div>
           </div>
         </div>
 
@@ -712,14 +722,17 @@
         </div>
       </div>
 
+      <div class="loading-indicator" id="comparisonLoading">
+        <i class="ri-loader-4-line"></i>
+        <p>Generating comparison charts...</p>
+      </div>
+
       <div id="comparisonChartsContainer" style="display: flex; flex-direction: column; gap: 20px;">
         <!-- Charts will be dynamically added here -->
       </div>
     </div>
-
-
-
   </div>
+
   <script>
     // Add an event listener to the logout button
     document.querySelector('.logout-btn').addEventListener('click', function(event) {
@@ -733,25 +746,68 @@
         window.location.href = "{{ url_for('logout') }}"; // Use Flask's url_for to generate the logout URL
       }
     });
-  </script>
-  <script>
+
     document.getElementById('crop').addEventListener('change', function() {
       const crop = this.value;
       const byProductContainer = document.getElementById('byProductContainer');
-      const regionBalochistanContainer = document.getElementById('regionBalochistanContainer');
-      const regionKPKContainer = document.getElementById('regionKPKContainer');
-
-      if (crop === 'Cotton') {
-        byProductContainer.style.display = 'block';
-        regionBalochistanContainer.style.display = 'block';
-        regionKPKContainer.style.display = 'none';
+      
+      // Reset all region checkboxes to their default state and make all visible
+      document.getElementById('regionPunjab').disabled = false;
+      document.getElementById('regionSindh').disabled = false;
+      document.getElementById('regionKPK').disabled = false;
+      document.getElementById('regionBalochistan').disabled = false;
+      
+      document.getElementById('regionPunjab').checked = false;
+      document.getElementById('regionSindh').checked = false;
+      document.getElementById('regionKPK').checked = false;
+      document.getElementById('regionBalochistan').checked = false;
+      
+      // By default, show all regions
+      document.getElementById('regionKPKContainer').style.display = 'block';
+      document.getElementById('regionBalochistanContainer').style.display = 'block';
+      
+      // Apply specific logic based on crop selection
+      if (crop === 'Cotton' ) {
+        // For Cotton and Wheat: Disable KPK
+        document.getElementById('regionKPK').disabled = true;
         document.getElementById('regionKPK').checked = false;
-      } else {
-        byProductContainer.style.display = 'none';
-        regionBalochistanContainer.style.display = 'none';
-        regionKPKContainer.style.display = 'block';
-        document.getElementById('byProduct').value = '';
+        //document.getElementById('regionKPKContainer').style.display = 'none';
+        
+        // For Cotton only, show by-product container
+        if (crop === 'Cotton') {
+          byProductContainer.style.display = 'block';
+        } else {
+          byProductContainer.style.display = 'none';
+          document.getElementById('byProduct').value = '';
+        }
+      } 
+      else if (crop === 'Maize') {
+        // For Maize: Enable only Punjab; Disable others
+        document.getElementById('regionSindh').disabled = true;
+        document.getElementById('regionKPK').disabled = true;
+        document.getElementById('regionBalochistan').disabled = true;
+        
+        document.getElementById('regionSindh').checked = false;
+        document.getElementById('regionKPK').checked = false;
         document.getElementById('regionBalochistan').checked = false;
+      }
+      else if (crop === 'Sugar') {
+        // For Sugar: Enable Punjab, Sindh, KPK; Disable Balochistan
+        document.getElementById('regionBalochistan').disabled = true;
+        document.getElementById('regionBalochistan').checked = false;
+        //document.getElementById('regionBalochistanContainer').style.display = 'none';
+      }
+      else if (crop === 'Wheat') {
+        // For Wheat: Enable Punjab, Sindh, Balochistan; Disable KPK
+        document.getElementById('regionKPK').disabled = true;
+        document.getElementById('regionKPK').checked = false;
+        //document.getElementById('regionBalochistanContainer').style.display = 'none';
+      }
+      
+      // For any crop other than Cotton, hide by-product container
+      if (crop !== 'Cotton') {
+        byProductContainer.style.display = 'none';
+        document.getElementById('byProduct').value = '';
       }
     });
 
@@ -771,8 +827,17 @@
       }
 
       fetch(`/get_sugar_data?crop=${crop}&regions=${regions.join(',')}&by_product=${byProduct}`)
-        .then(response => response.json())
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+          }
+          return response.json();
+        })
         .then(data => {
+          if (!data || data.length === 0) {
+            throw new Error('No data received from server');
+          }
+          
           const ctx = document.getElementById('commodityChart').getContext('2d');
 
           if (window.commodityChart instanceof Chart) {
@@ -870,379 +935,268 @@
           alert('Error fetching data. Please ensure the data is available for the selected regions and by product.');
         });
     });
-  </script>
 
-  
-  <!-- HEATMAP SCRIPTTTT -->
-   
+    document.getElementById('heatmapCrop').addEventListener('change', function() {
+      const crop = this.value;
+      const byProductCottonContainer = document.getElementById('heatmap_byProductContainer_cotton');
+      const byProductSugarContainer = document.getElementById('heatmap_byProductContainer_sugar');
+      
+      // Hide both by-product dropdowns initially
+      byProductCottonContainer.style.display = "none";
+      byProductSugarContainer.style.display = "none";
 
-  <!-- <script>
-    document.getElementById('heatmapCrop').addEventListener('change', function() {
-        const crop = this.value;
-        if (crop) {
-            loadHeatmap();
-        }
+      // Show the relevant by-product dropdown if needed
+      if (crop === 'Cotton') {
+        byProductCottonContainer.style.display = "block";
+      } else if (crop === 'Sugar') {
+        byProductSugarContainer.style.display = "block";
+      }
+
+      // Load heatmap for the selected crop
+      loadHeatmap();
     });
-    
-    function loadHeatmap() {
-        fetch('/get_heatmap_data')
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error:', data.error);
-                    return;
-                }
-                
-                // Create container for the map if it doesn't exist
-                const container = document.getElementById('heatmapContainer');
-                container.innerHTML = ""; // Clear the container before re-rendering the map
-                
-                // Initialize the map (center on a default location)
-                const map = L.map('heatmapContainer').setView([30.0, 70.0], 6);  // Default coordinates and zoom level
-  
-                // Add OpenStreetMap tile layer
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                }).addTo(map);
-                
-                // Prepare heatmap data for Leaflet
-                const heatData = data.heat_data.map(item => [item[0], item[1], item[2]]);
-                
-                // Add heatmap layer
-                L.heatLayer(heatData, {
-                    minOpacity: 0.2,
-                    radius: 20,
-                    blur: 15,
-                    maxZoom: 8
-                }).addTo(map);
-            })
-            .catch(error => console.error('Error fetching heatmap data:', error));
-    }
-  </script> -->
-  
-  <script>
-    document.getElementById('heatmapCrop').addEventListener('change', function() {
-        const crop = this.value;
-        const byProductCottonContainer = document.getElementById('heatmap_byProductContainer_cotton');
-        const byProductSugarContainer = document.getElementById('heatmap_byProductContainer_sugar');
-        
-        // Hide both by-product dropdowns initially
-        byProductCottonContainer.style.display = "none";
-        byProductSugarContainer.style.display = "none";
-    
-        // Show the relevant by-product dropdown if needed
-        if (crop === 'Cotton') {
-            byProductCottonContainer.style.display = "block";
-        } else if (crop === 'Sugar') {
-            byProductSugarContainer.style.display = "block";
-        }
-    
-        // Load heatmap for the selected crop
-        loadHeatmap();
-    });
-    
+
     // Listen for changes in the Cotton by-product dropdown
     document.getElementById('byProduct_cotton').addEventListener('change', function() {
-        loadHeatmap();
+      loadHeatmap();
     });
-    
+
     // Listen for changes in the Sugar by-product dropdown
     document.getElementById('byProduct_sugar').addEventListener('change', function() {
-        loadHeatmap();
+      loadHeatmap();
     });
-    
+
     function loadHeatmap() {
-        const crop = document.getElementById('heatmapCrop').value;
-        let byProduct = "";
-    
-        // Check selected by-product for Cotton
-        if (crop === "Cotton") {
-            byProduct = document.getElementById('byProduct_cotton').value;
-        } 
-        // Check selected by-product for Sugar
-        else if (crop === "Sugar") {
-            byProduct = document.getElementById('byProduct_sugar').value;
-        }
-    
-        fetch(`/get_heatmap_data?crop=${encodeURIComponent(crop)}&by_product=${encodeURIComponent(byProduct)}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    console.error('Error:', data.error);
-                    return;
-                }
-                
-                const container = document.getElementById('heatmapContainer');
-                container.innerHTML = ""; // Clear previous content
-    
-                // Create a temporary div to insert the HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = data.map_html;
-    
-                // Extract the iframe
-                const iframe = tempDiv.querySelector('iframe');
-                if (iframe) {
-                    iframe.style.width = "100%";
-                    iframe.style.height = "350px"; // Ensure it matches the container
-                    iframe.style.border = "none"; // Remove border
-                }
-    
-                // Append iframe to container
-                container.appendChild(tempDiv.firstElementChild);
-            })
-            .catch(error => console.error('Error fetching heatmap data:', error));
-    }
-    </script>
-    
-  
-  <script>
-      document.getElementById('province').addEventListener('change', function() {
-        const province = this.value;
-        const cropContainer = document.getElementById('cropContainer');
-        
-        if (province) {
-            cropContainer.style.display = 'block';
-        } else {
-            cropContainer.style.display = 'none';
-        }
-    });
-    
-    document.getElementById('showGraphProvince').addEventListener('click', function() {
-        const province = document.getElementById('province').value;
-        const crops = Array.from(document.querySelectorAll('input[name="crop"]:checked')).map(el => el.value);
-    
-        if (!province || crops.length === 0) {
-            alert('Please select at least one province and one crop.');
-            return;
-        }
-    
-        fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
-            .then(response => response.json())
-            .then(data => {
-                const ctx = document.getElementById('cropChart').getContext('2d');
-    
-                if (window.cropChart instanceof Chart) {
-                    window.cropChart.destroy();
-                }
-    
-                const allDates = Array.from(new Set(data.flatMap(cropData => [
-                    ...cropData.dates_actual,
-                    ...cropData.dates_predicted
-                ]))).sort();
-    
-                const datasets = [];
-                data.forEach(cropData => {
-                    const actualPricesMapped = allDates.map(date =>
-                        cropData.dates_actual.includes(date)
-                            ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
-                            : null
-                    );
-    
-                    const predictedPricesMapped = allDates.map(date =>
-                        cropData.dates_predicted.includes(date)
-                            ? cropData.predicted_prices[cropData.dates_predicted.indexOf(date)]
-                            : null
-                    );
-    
-                    datasets.push({
-                        label: `${cropData.crop} Actual Prices`,
-                        data: actualPricesMapped,
-                        borderColor: cropData.color_actual,
-                        fill: false,
-                        tension: 0.1,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        borderWidth: 3
-                    });
-    
-                    datasets.push({
-                        label: `${cropData.crop} Predicted Prices`,
-                        data: predictedPricesMapped,
-                        borderColor: cropData.color_predicted,
-                        fill: false,
-                        tension: 0.1,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        borderWidth: 1.5
-                    });
-                });
-    
-                window.cropChart = new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: allDates,
-                        datasets: datasets
-                    },
-                    options: {
-                        responsive: true,
-                        maintainAspectRatio: false,
-                        scales: {
-                            x: {
-                                type: 'time',
-                                time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
-                                title: { display: true, text: 'Date' },
-                                grid: {
-                                    color: 'rgba(0,0,0,0.05)'
-                                }
-                            },
-                            y: {
-                                title: { display: true, text: 'Price' },
-                                grid: {
-                                    color: 'rgba(0,0,0,0.05)'
-                                }
-                            }
-                        },
-                        plugins: {
-                            title: { 
-                                display: true, 
-                                text: `Crop Price Trends in ${province}`,
-                                font: {
-                                    size: 16,
-                                    weight: 'bold'
-                                }
-                            },
-                            legend: {
-                                labels: {
-                                    usePointStyle: true,
-                                    padding: 20
-                                }
-                            }
-                        }
-                    }
-                });
-            })
-            .catch(error => {
-                console.error('Error fetching data:', error);
-                alert('Error fetching data. Please ensure data is available for the selected province and crops.');
-            });
-    });
-    
-    </script>
-    <script>
-      document.getElementById('showComparisonGraph').addEventListener('click', function() {
-          const province = document.getElementById('compareRegion').value;
-          const crops = [];
-          
-          if (document.getElementById('compareMaize').checked) crops.push('Maize');
-          if (document.getElementById('compareCottonByProduct1').checked) crops.push('Cotton-1');
-          if (document.getElementById('compareCottonByProduct2').checked) crops.push('Cotton-2');
-          if (document.getElementById('compareSugar').checked) crops.push('Sugar');
-      
-          if (!province || crops.length === 0) {
-              alert('Please select a province and at least one crop.');
-              return;
+      const crop = document.getElementById('heatmapCrop').value;
+      let byProduct = "";
+
+      // Check selected by-product for Cotton
+      if (crop === "Cotton") {
+        byProduct = document.getElementById('byProduct_cotton').value;
+      } 
+      // Check selected by-product for Sugar
+      else if (crop === "Sugar") {
+        byProduct = document.getElementById('byProduct_sugar').value;
+      }
+
+      fetch(`/get_heatmap_data?crop=${encodeURIComponent(crop)}&by_product=${encodeURIComponent(byProduct)}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
           }
+          return response.json();
+        })
+        .then(data => {
+          if (data.error) {
+            console.error('Error:', data.error);
+            return;
+          }
+          
+          const container = document.getElementById('heatmapContainer');
+          container.innerHTML = ""; // Clear previous content
+
+          // Create a temporary div to insert the HTML
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = data.map_html;
+
+          // Extract the iframe
+          const iframe = tempDiv.querySelector('iframe');
+          if (iframe) {
+            iframe.style.width = "100%";
+            iframe.style.height = "350px"; // Ensure it matches the container
+            iframe.style.border = "none"; // Remove border
+          }
+
+          // Append iframe to container
+          container.appendChild(tempDiv.firstElementChild);
+        })
+        .catch(error => {
+          console.error('Error fetching heatmap data:', error);
+          const container = document.getElementById('heatmapContainer');
+          container.innerHTML = `<div class="alert alert-danger">Error loading heatmap: ${error.message}</div>`;
+        });
+    }
+
+    document.getElementById('showComparisonGraph').addEventListener('click', function() {
+      const region = document.getElementById('compareRegion').value;
+      const crops = [];
       
-          // Clear existing charts
-          const container = document.getElementById('comparisonChartsContainer');
-          container.innerHTML = '';
+      if (document.getElementById('compareMaize').checked) crops.push('Maize');
+      if (document.getElementById('compareCottonByProduct1').checked) crops.push('Cotton-1');
+      if (document.getElementById('compareCottonByProduct2').checked) crops.push('Cotton-2');
+      if (document.getElementById('compareSugar').checked) crops.push('Sugar');
+      if (document.getElementById('compareWheat').checked) crops.push('Wheat');
+
+      if (!region || crops.length === 0) {
+        alert('Please select a region and at least one crop.');
+        return;
+      }
+
+      // Show loading indicator
+      const loadingIndicator = document.getElementById('comparisonLoading');
+      loadingIndicator.style.display = 'block';
       
-          // Create a canvas for each selected crop
-          crops.forEach((crop, index) => {
-              const chartDiv = document.createElement('div');
-              chartDiv.className = 'chart-container';
-              chartDiv.style.marginBottom = '20px';
-              
-              const canvas = document.createElement('canvas');
-              canvas.id = `comparisonChart_${index}`;
-              chartDiv.appendChild(canvas);
-              container.appendChild(chartDiv);
-          });
-      
-          fetch(`/get_crop_data?province=${province}&crops=${crops.join(',')}`)
-              .then(response => response.json())
-              .then(data => {
-                  data.forEach((cropData, index) => {
-                      const ctx = document.getElementById(`comparisonChart_${index}`).getContext('2d');
-      
-                      const allDates = [
-                          ...cropData.dates_actual,
-                          ...cropData.dates_predicted
-                      ].sort();
-      
-                      const actualPricesMapped = allDates.map(date =>
-                          cropData.dates_actual.includes(date)
-                              ? cropData.actual_prices[cropData.dates_actual.indexOf(date)]
-                              : null
-                      );
-      
-                      const predictedPricesMapped = allDates.map(date =>
-                          cropData.dates_predicted.includes(date)
-                              ? cropData.predicted_prices[cropData.dates_predicted.indexOf(date)]
-                              : null
-                      );
-      
-                      new Chart(ctx, {
-                          type: 'line',
-                          data: {
-                              labels: allDates,
-                              datasets: [
-                                  {
-                                      label: `${cropData.crop} Actual Prices`,
-                                      data: actualPricesMapped,
-                                      borderColor: cropData.color_actual,
-                                      fill: false,
-                                      tension: 0.1,
-                                      pointRadius: 0,
-                                      pointHoverRadius: 0,
-                                      borderWidth: 3
-                                  },
-                                  {
-                                      label: `${cropData.crop} Predicted Prices`,
-                                      data: predictedPricesMapped,
-                                      borderColor: cropData.color_predicted,
-                                      fill: false,
-                                      tension: 0.1,
-                                      pointRadius: 0,
-                                      pointHoverRadius: 0,
-                                      borderWidth: 1.5
-                                  }
-                              ]
-                          },
-                          options: {
-                              responsive: true,
-                              maintainAspectRatio: false,
-                              scales: {
-                                  x: {
-                                      type: 'time',
-                                      time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
-                                      title: { display: true, text: 'Date' },
-                                      grid: {
-                                          color: 'rgba(0,0,0,0.05)'
-                                      }
-                                  },
-                                  y: {
-                                      title: { display: true, text: 'Price' },
-                                      grid: {
-                                          color: 'rgba(0,0,0,0.05)'
-                                      }
-                                  }
-                              },
-                              plugins: {
-                                  title: { 
-                                      display: true, 
-                                      text: `${cropData.crop} Price Trends in ${province}`,
-                                      font: {
-                                          size: 16,
-                                          weight: 'bold'
-                                      }
-                                  },
-                                  legend: {
-                                      labels: {
-                                          usePointStyle: true,
-                                          padding: 20
-                                      }
-                                  }
-                              }
-                          }
-                      });
-                  });
-              })
-              .catch(error => {
-                  console.error('Error fetching data:', error);
-                  alert('Error fetching data. Please ensure data is available for the selected province and crops.');
-              });
+      // Clear existing charts
+      const container = document.getElementById('comparisonChartsContainer');
+      container.innerHTML = '';
+      container.style.display = 'none';
+
+      // For debugging
+      console.log(`Fetching data for region: ${region}, crops: ${crops.join(',')}`);
+
+      // Create a canvas for each selected crop
+      crops.forEach((crop, index) => {
+        const chartDiv = document.createElement('div');
+        chartDiv.className = 'chart-container';
+        chartDiv.style.marginBottom = '20px';
+        chartDiv.style.height = '400px';
+        
+        const canvas = document.createElement('canvas');
+        canvas.id = `comparisonChart_${index}`;
+        chartDiv.appendChild(canvas);
+        container.appendChild(chartDiv);
       });
+
+      fetch(`/get_crop_data?province=${encodeURIComponent(region)}&crops=${encodeURIComponent(crops.join(','))}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Network response was not ok: ' + response.statusText);
+          }
+          return response.json();
+        })
+        .then(data => {
+          // Hide loading indicator
+          loadingIndicator.style.display = 'none';
+          container.style.display = 'flex';
+          
+          console.log("Data received:", data);
+          
+          if (!data || !Array.isArray(data) || data.length === 0) {
+            throw new Error('No valid data received from server');
+          }
+
+          data.forEach((cropData, index) => {
+            const canvas = document.getElementById(`comparisonChart_${index}`);
+            if (!canvas) {
+              console.error(`Canvas with id comparisonChart_${index} not found`);
+              return;
+            }
+            
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+              console.error('Could not get 2D context for canvas');
+              return;
+            }
+
+            const allDates = [
+              ...cropData.dates_actual || [],
+              ...cropData.dates_predicted || []
+            ].sort();
+
+            if (allDates.length === 0) {
+              console.error('No dates found in data');
+              return;
+            }
+
+            const actualPricesMapped = allDates.map(date =>
+              (cropData.dates_actual || []).includes(date)
+                ? cropData.actual_prices[(cropData.dates_actual || []).indexOf(date)]
+                : null
+            );
+
+            const predictedPricesMapped = allDates.map(date =>
+              (cropData.dates_predicted || []).includes(date)
+                ? cropData.predicted_prices[(cropData.dates_predicted || []).indexOf(date)]
+                : null
+            );
+
+            new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: allDates,
+                datasets: [
+                  {
+                    label: `${cropData.crop} Actual Prices`,
+                    data: actualPricesMapped,
+                    borderColor: cropData.color_actual || '#2ecc71',
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 2,
+                    pointHoverRadius: 5,
+                    borderWidth: 3
+                  },
+                  {
+                    label: `${cropData.crop} Predicted Prices`,
+                    data: predictedPricesMapped,
+                    borderColor: cropData.color_predicted || '#3498db',
+                    fill: false,
+                    tension: 0.1,
+                    pointRadius: 0,
+                    pointHoverRadius: 3,
+                    borderWidth: 1.5,
+                    borderDash: [5, 5]
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                  x: {
+                    type: 'time',
+                    time: { unit: 'month', tooltipFormat: 'YYYY-MM-DD' },
+                    title: { display: true, text: 'Date' },
+                    grid: {
+                      color: 'rgba(0,0,0,0.05)'
+                    }
+                  },
+                  y: {
+                    title: { display: true, text: 'Price' },
+                    grid: {
+                      color: 'rgba(0,0,0,0.05)'
+                    }
+                  }
+                },
+                plugins: {
+                  title: { 
+                    display: true, 
+                    text: `${cropData.crop} Price Trends in ${region}`,
+                    font: {
+                      size: 16,
+                      weight: 'bold'
+                    }
+                  },
+                  legend: {
+                    labels: {
+                      usePointStyle: true,
+                      padding: 20
+                    }
+                  },
+                  tooltip: {
+                    mode: 'index',
+                    intersect: false
+                  }
+                }
+              }
+            });
+          });
+        })
+        .catch(error => {
+          console.error('Error fetching data:', error);
+          
+          // Hide loading indicator
+          loadingIndicator.style.display = 'none';
+          
+          // Show error message
+          container.style.display = 'block';
+          container.innerHTML = `
+            <div class="alert alert-danger" style="padding: 1rem; background-color: #fee2e2; color: #b91c1c; border-radius: 0.5rem; margin-bottom: 1rem;">
+              <p><strong>Error loading data:</strong> ${error.message}</p>
+              <p>Please ensure data is available for the selected region and crops.</p>
+            </div>
+          `;
+        });
+    });
   </script>
 </body>
 </html>
