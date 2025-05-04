@@ -804,6 +804,8 @@
   </div>
 
   <script>
+    //for comodity comparison graph
+    
     // Add an event listener to the logout button
     document.querySelector('.logout-btn').addEventListener('click', function(event) {
       event.preventDefault(); // Prevent any default behavior
@@ -816,7 +818,21 @@
         window.location.href = "{{ url_for('logout') }}"; // Use Flask's url_for to generate the logout URL
       }
     });
+    // Add global styling for disabled checkboxes (both sections)
+const addStyleForDisabledCheckboxes = () => {
+  const style = document.createElement('style');
+  style.textContent = `
+    .commodity-checkbox input[type="checkbox"]:disabled + label,
+    .region-checkbox input[type="checkbox"]:disabled + label {
+      color: #ccc;
+      cursor: not-allowed;
+    }
+  `;
+  document.head.appendChild(style);
+};
 
+// Execute once when page loads
+addStyleForDisabledCheckboxes();
     document.getElementById('crop').addEventListener('change', function() {
       const crop = this.value;
       const byProductContainer = document.getElementById('byProductContainer');
@@ -1267,6 +1283,48 @@
           `;
         });
     });
+
+
+// Add an event listener to the region dropdown to modify crop checkbox availability
+document.getElementById('compareRegion').addEventListener('change', function() {
+  const region = this.value;
+  
+  // Get all crop checkboxes
+  const maizeCheckbox = document.getElementById('compareMaize');
+  const cottonByProduct1Checkbox = document.getElementById('compareCottonByProduct1');
+  const cottonByProduct2Checkbox = document.getElementById('compareCottonByProduct2');
+  const sugarCheckbox = document.getElementById('compareSugar');
+  const wheatCheckbox = document.getElementById('compareWheat');
+  
+  // Reset all checkboxes to be clickable (enabled) and unchecked
+  maizeCheckbox.disabled = false;
+  cottonByProduct1Checkbox.disabled = false;
+  cottonByProduct2Checkbox.disabled = false;
+  sugarCheckbox.disabled = false;
+  wheatCheckbox.disabled = false;
+  
+  maizeCheckbox.checked = false;
+  cottonByProduct1Checkbox.checked = false;
+  cottonByProduct2Checkbox.checked = false;
+  sugarCheckbox.checked = false;
+  wheatCheckbox.checked = false;
+  
+  // Apply region-specific restrictions
+  if (region === 'KPK') {
+    // When KPK is chosen, wheat, cotton and maize checkboxes should be unclickable
+    wheatCheckbox.disabled = true;
+    cottonByProduct1Checkbox.disabled = true;
+    cottonByProduct2Checkbox.disabled = true;
+    maizeCheckbox.disabled = true;
+  } 
+  else if (region === 'Balochistan') {
+    // When Balochistan is chosen, maize and sugar checkboxes should be unclickable
+    maizeCheckbox.disabled = true;
+    sugarCheckbox.disabled = true;
+  }
+  // For Punjab and Sindh, all crops are already enabled (default state)
+});
   </script>
+  
 </body>
 </html>
