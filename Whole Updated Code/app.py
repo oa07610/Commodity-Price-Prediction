@@ -220,6 +220,17 @@ def external():
         maize_df = pd.read_csv('external_factor_data/maize_production.csv')
         export_df = pd.read_csv('external_factor_data/export_trends_fake_data.csv')
         rainfall_df = pd.read_csv('external_factor_data/rainfall_crop_prices_2010_2025.csv')
+        
+        # Read USD exchange rate data
+        usd_df = pd.read_csv('external_factor_data/USD_PKR Historical Data.csv')
+        
+        # Process USD data
+        usd_dates = usd_df['Date'].tolist()
+        usd_prices = usd_df['Price'].tolist()
+        usd_open = usd_df['Open'].tolist()
+        usd_high = usd_df['High'].tolist()
+        usd_low = usd_df['Low'].tolist()
+        usd_change_pct = usd_df['Change %'].str.rstrip('%').astype('float').tolist()
 
         # Get list of years
         years = wheat_df['YEAR'].unique().tolist()
@@ -296,6 +307,12 @@ def external():
         rainfall_years=json.dumps(rainfall_years),
         rainfall_data=json.dumps(rainfall_data),
         crop_prices=json.dumps(crop_prices),
+        usd_dates=json.dumps(usd_dates),
+        usd_prices=json.dumps(usd_prices),
+        usd_open=json.dumps(usd_open),
+        usd_high=json.dumps(usd_high),
+        usd_low=json.dumps(usd_low),
+        usd_change_pct=json.dumps(usd_change_pct),
         last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     )
 @app.route('/get_crop_production_data/<int:year>')
