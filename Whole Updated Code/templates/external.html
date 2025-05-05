@@ -432,20 +432,9 @@
 
     <div class="dashboard-grid">
         <!-- USD Exchange Rate Card - Full width and first -->
-        <!-- USD Exchange Rate Card - Full width and first -->
         <div class="dashboard-card full-width-card">
-            <div class="card-header d-flex justify-content-between align-items-center">
-                <div>
-                    <h3 class="card-title">USD/PKR Exchange Rate Historical</h3>
-                    <select id="cropSelector" class="crop-selector">
-                        <option value="">Select a crop to compare</option>
-                        <option value="maize">Maize</option>
-                        <option value="wheat">Wheat</option>
-                        <option value="cotton1">Cotton (Product 1)</option>
-                        <option value="cotton2">Cotton (Product 2)</option>
-                        <option value="sugar">Sugar</option>
-                    </select>
-                </div>
+            <div class="card-header">
+                <h3 class="card-title">USD/PKR Exchange Rate Historical</h3>
                 <i class="ri-exchange-dollar-line card-icon"></i>
             </div>
             <div class="chart-container">
@@ -646,7 +635,7 @@
                     console.error('Error updating charts:', error);
                 });
         }
-        let usdChart
+        
         document.addEventListener('DOMContentLoaded', function() {
             // Debug data
             console.log('Petrol dates:', {{ petrol_dates | safe }});
@@ -782,25 +771,147 @@
             }
         });
         // Add this to your DOMContentLoaded event listener
-        const exportTrendsCtx = document.getElementById('exportTrendsChart').getContext('2d');
-        new Chart(exportTrendsCtx, {
+const exportTrendsCtx = document.getElementById('exportTrendsChart').getContext('2d');
+new Chart(exportTrendsCtx, {
+    type: 'line',
+    data: {
+        labels: {{ export_dates | safe }},
+        datasets: [{
+            label: 'Export Index',
+            data: {{ export_index | safe }},
+            borderColor: '#2ecc71',
+            yAxisID: 'y',
+            tension: 0.4,
+            fill: false
+        }, {
+            label: 'Price ($)',
+            data: {{ export_prices | safe }},
+            borderColor: '#e74c3c',
+            yAxisID: 'y1',
+            tension: 0.4,
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        plugins: {
+            legend: {
+                position: 'bottom'
+            },
+            title: {
+                display: true,
+                text: 'Export Trends vs. Price'
+            }
+        },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Export Index'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Price ($)'
+                },
+                grid: {
+                    drawOnChartArea: false
+                }
+            }
+        }
+    }
+});
+// Initialize rainfall and crop price chart
+const rainfallCtx = document.getElementById('rainfallChart').getContext('2d');
+new Chart(rainfallCtx, {
+    type: 'line',
+    data: {
+        labels: {{ rainfall_years | safe }},
+        datasets: [{
+            label: 'Rainfall (mm)',
+            data: {{ rainfall_data | safe }},
+            borderColor: '#3498db',
+            yAxisID: 'y',
+            tension: 0.4,
+            fill: false
+        }, {
+            label: 'Crop Price (USD/ton)',
+            data: {{ crop_prices | safe }},
+            borderColor: '#2ecc71',
+            yAxisID: 'y1',
+            tension: 0.4,
+            fill: false
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: {
+            mode: 'index',
+            intersect: false,
+        },
+        plugins: {
+            title: {
+                display: true,
+                text: 'Rainfall and Crop Price Trends'
+            }
+        },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: 'Rainfall (mm)'
+                },
+                grid: {
+                    color: 'rgba(0, 0, 0, 0.05)'
+                }
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: 'Crop Price (USD/ton)'
+                },
+                grid: {
+                    drawOnChartArea: false
+                }
+            }
+        }
+    }
+});
+// Initialize USD exchange rate chart with thinner lines
+const usdCtx = document.getElementById('usdChart').getContext('2d');
+        new Chart(usdCtx, {
             type: 'line',
             data: {
-                labels: {{ export_dates | safe }},
+                labels: {{ usd_dates | safe }},
                 datasets: [{
-                    label: 'Export Index',
-                    data: {{ export_index | safe }},
-                    borderColor: '#2ecc71',
-                    yAxisID: 'y',
-                    tension: 0.4,
-                    fill: false
-                }, {
-                    label: 'Price ($)',
-                    data: {{ export_prices | safe }},
-                    borderColor: '#e74c3c',
-                    yAxisID: 'y1',
-                    tension: 0.4,
-                    fill: false
+                    label: 'USD/PKR',
+                    data: {{ usd_prices | safe }},
+                    borderColor: 'var(--chart-blue)',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    borderWidth: 1,
+                    tension: 0.1,
+                    fill: true,
+                    pointRadius: 0,
+                    pointHitRadius: 5
                 }]
             },
             options: {
@@ -812,230 +923,77 @@
                 },
                 plugins: {
                     legend: {
-                        position: 'bottom'
+                        display: false
                     },
                     title: {
-                        display: true,
-                        text: 'Export Trends vs. Price'
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: '#ddd',
+                        borderWidth: 1,
+                        padding: 10,
+                        displayColors: false,
+                        callbacks: {
+                            label: function(context) {
+                                return 'PKR ' + context.parsed.y.toFixed(2);
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Export Index'
+                        position: 'right',
+                        beginAtZero: false,
+                        grid: {
+                            color: 'var(--chart-grid)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#666',
+                            font: {
+                                size: 10
+                            },
+                            callback: function(value) {
+                                return 'PKR ' + value;
+                            }
+                        },
+                        border: {
+                            display: false
                         }
                     },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Price ($)'
-                        },
+                    x: {
                         grid: {
-                            drawOnChartArea: false
+                            display: true,
+                            color: 'var(--chart-grid)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#666',
+                            font: {
+                                size: 10
+                            },
+                            maxRotation: 0
+                        },
+                        border: {
+                            display: false
                         }
+                    }
+                },
+                layout: {
+                    padding: {
+                        top: 20,
+                        right: 20,
+                        bottom: 20,
+                        left: 20
                     }
                 }
             }
         });
-        // Initialize rainfall and crop price chart
-        const rainfallCtx = document.getElementById('rainfallChart').getContext('2d');
-        new Chart(rainfallCtx, {
-            type: 'line',
-            data: {
-                labels: {{ rainfall_years | safe }},
-                datasets: [{
-                    label: 'Rainfall (mm)',
-                    data: {{ rainfall_data | safe }},
-                    borderColor: '#3498db',
-                    yAxisID: 'y',
-                    tension: 0.4,
-                    fill: false
-                }, {
-                    label: 'Crop Price (USD/ton)',
-                    data: {{ crop_prices | safe }},
-                    borderColor: '#2ecc71',
-                    yAxisID: 'y1',
-                    tension: 0.4,
-                    fill: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                plugins: {
-                    title: {
-                        display: true,
-                        text: 'Rainfall and Crop Price Trends'
-                    }
-                },
-                scales: {
-                    y: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: {
-                            display: true,
-                            text: 'Rainfall (mm)'
-                        },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
-                    },
-                    y1: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        title: {
-                            display: true,
-                            text: 'Crop Price (USD/ton)'
-                        },
-                        grid: {
-                            drawOnChartArea: false
-                        }
-                    }
-                }
-            }
-        });     
-        const usdCtx = document.getElementById('usdChart').getContext('2d');
-            usdChart = new Chart(usdCtx, {
-                type: 'line',
-                data: {
-                    labels: {{ usd_dates | safe }},
-                    datasets: [{
-                        label: 'USD/PKR',
-                        data: {{ usd_prices | safe }},
-                        borderColor: 'var(--chart-blue)',
-                        backgroundColor: 'rgba(33, 150, 243, 0.1)',
-                        borderWidth: 1,
-                        tension: 0.1,
-                        fill: true,
-                        pointRadius: 0,
-                        pointHitRadius: 5,
-                        yAxisID: 'y'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: {
-                        mode: 'index',
-                        intersect: false,
-                    },
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                            labels: {
-                                usePointStyle: true,
-                                padding: 20,
-                                font: {
-                                    size: 11
-                                }
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                            titleColor: '#333',
-                            bodyColor: '#666',
-                            borderColor: '#ddd',
-                            borderWidth: 1,
-                            padding: 10,
-                            displayColors: true,
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.dataset.label || '';
-                                    const value = context.parsed.y;
-                                    if (context.datasetIndex === 0) {
-                                        return `${label}: PKR ${value.toFixed(2)}`;
-                                    } else {
-                                        return `${label}: Rs. ${value.toFixed(2)}/kg`;
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            position: 'right',
-                            beginAtZero: false,
-                            grid: {
-                                color: 'var(--chart-grid)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 10
-                                },
-                                callback: function(value) {
-                                    return 'PKR ' + value;
-                                }
-                            },
-                            border: {
-                                display: false
-                            }
-                        },
-                        y1: {
-                            position: 'left',
-                            beginAtZero: false,
-                            grid: {
-                                display: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 10
-                                },
-                                callback: function(value) {
-                                    return 'Rs. ' + value;
-                                }
-                            },
-                            border: {
-                                display: false
-                            }
-                        },
-                        x: {
-                            grid: {
-                                display: true,
-                                color: 'var(--chart-grid)',
-                                drawBorder: false
-                            },
-                            ticks: {
-                                color: '#666',
-                                font: {
-                                    size: 10
-                                },
-                                maxRotation: 0
-                            },
-                            border: {
-                                display: false
-                            }
-                        }
-                    },
-                    layout: {
-                        padding: {
-                            top: 20,
-                            right: 20,
-                            bottom: 20,
-                            left: 20
-                        }
-                    }
-                }
-            });
+        
 
     </script>
-   
- 
     </body>
 </html>
